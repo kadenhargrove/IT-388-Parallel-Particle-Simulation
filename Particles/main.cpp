@@ -9,12 +9,12 @@ struct Body
     sf::Vector3f vel; // 2 m/s along x-axis
     sf::Vector3f acc; // no acceleration at first
     float mass = 1.0f; // 1kg
-    float drag = 0.1f; // rho*C*Area – simplified drag for this example
+    float drag = 1.0f; // rho*C*Area – simplified drag for this example
     sf::CircleShape shape;
 
     Body() {
         this->pos = sf::Vector3f(0.0f, 0.0f, 0.0f);
-        this->vel = sf::Vector3f(40.0f, 0.0f, 0.0f);
+        this->vel = sf::Vector3f(50.0f, 0.0f, 0.0f);
         this->acc = sf::Vector3f(0.0f, 0.0f, 0.0f);
         this->shape = sf::CircleShape(10.f);
         this->shape.setOrigin(this->shape.getRadius(), this->shape.getRadius());
@@ -55,7 +55,7 @@ struct Body
 
     sf::Vector3f apply_forces() const
     {
-        sf::Vector3f grav_acc = sf::Vector3f( 0.0f, 9.81f, 0.0f ); // 9.81 m/s² down in the y-axis
+        sf::Vector3f grav_acc = sf::Vector3f( 0.0f, 40.0f, 0.0f ); // 9.81 m/s² down in the y-axis
         sf::Vector3f newVel = sf::Vector3f(pow(vel.x,2.0f), pow(vel.y, 2.0f), pow(vel.z, 2.0f));
         sf::Vector3f drag_force = 0.5f * drag * newVel; // D = 0.5 * (rho * C * Area * vel^2)
         sf::Vector3f drag_acc = drag_force / mass; // a = F/m
@@ -75,14 +75,15 @@ int main()
     /*sf::CircleShape shape(10.f);
     shape.setFillColor(sf::Color::Green);*/
     particles.push_back(new Body());
-    particles.push_back(new Body());
+    /*particles.push_back(new Body());
     particles.at(1)->setPosition(400.0f, 0.0f);
     particles.at(1)->vel.x = -40.0f;
-    particles.at(1)->shape.setFillColor(sf::Color(0,255,0,255));
+    particles.at(1)->shape.setFillColor(sf::Color(0,255,0,255));*/
     //particle1.setPosition(400.0f,400.0f);
 
     FPS fps;
     int counter = 0;
+    int colorCounter = 0;
     while (window.isOpen())
     {
         sf::Event event;
@@ -90,6 +91,16 @@ int main()
         {
             if (event.type == sf::Event::Closed)
                 window.close();
+        }
+        if (counter % 15 == 0 && particles.size() < 35)
+        {
+            Body* newBody = new Body();
+            if (colorCounter == 0) newBody->shape.setFillColor(sf::Color(255, 0, 0, 255));
+            if (colorCounter == 1) newBody->shape.setFillColor(sf::Color(0, 255, 0, 255));
+            if (colorCounter == 2) newBody->shape.setFillColor(sf::Color(0, 0, 255, 255));
+            if (colorCounter < 2) colorCounter++;
+            else colorCounter = 0;
+            particles.push_back(newBody);
         }
 
         updatePhysicsSubtick(dt, 8);
@@ -147,8 +158,8 @@ void solveCollision(Body* particle1, Body* particle2)
     const float dist2 = o2_o1.x * o2_o1.x + o2_o1.y * o2_o1.y;
     
     const float dist = sqrt(dist2);
-    //const float delta = response_coef * 0.5f * ((particle1->shape.getRadius()+particle2->shape.getRadius()) - dist);
-    const float delta = dist / 4.0f;
+    const float delta = response_coef * 0.5f * ((particle1->shape.getRadius()+particle2->shape.getRadius()) - dist);
+    //const float delta = dist / 4.0f;
     const sf::Vector2f col_vec = (o2_o1 / dist) * delta;
     sf::Vector2f newP1Pos = particle1->shape.getPosition() + col_vec;
     particle1->shape.setPosition(newP1Pos);
@@ -178,9 +189,10 @@ void findCollisions()
 void updatePhysics(float dt)
 {
     const float margin = 2.0f;
-    findCollisions();
+    
     for (Body* particle : particles)
     {
+        findCollisions();
         particle->update(dt);
         if (particle->pos.x > 800 - margin - particle->shape.getRadius()) {
             particle->pos.x = 800 - margin - particle->shape.getRadius();
