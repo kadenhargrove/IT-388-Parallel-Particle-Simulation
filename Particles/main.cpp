@@ -65,10 +65,10 @@ struct Body
     sf::Vector3f apply_forces() const
     {
         sf::Vector3f grav_acc = sf::Vector3f( 0.0f, 40.0f, 0.0f ); // 9.81 m/s� down in the y-axis
-        sf::Vector3f newVel = sf::Vector3f(pow(vel.x,2.0f), pow(vel.y, 2.0f), pow(vel.z, 2.0f));
-        sf::Vector3f drag_force = 0.5f * drag * newVel; // D = 0.5 * (rho * C * Area * vel^2)
+        // sf::Vector3f newVel = sf::Vector3f(pow(vel.x,2.0f), pow(vel.y, 2.0f), pow(vel.z, 2.0f));
+        sf::Vector3f drag_force = 0.5f * drag * vel; // D = 0.5 * (rho * C * Area * vel^2)
         sf::Vector3f drag_acc = drag_force / mass; // a = F/m
-        return grav_acc;
+        return grav_acc- drag_acc;
     }
 };
 
