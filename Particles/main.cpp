@@ -11,6 +11,7 @@
 #include <vector>
 #include <math.h>
 #include <omp.h>
+#include <iostream>
 
 struct Body
 {
@@ -72,9 +73,25 @@ struct Body
     }
 };
 
+struct Cell{
+	static const size_t cellCapacity = 4;
+	static const size_t maxCellIndex = cellCapacity-1;
+
+	size_t particleCount = 0;
+	size_t particles[cellCapacity];
+
+	void addParticle(size_t index){
+		particleCount += particleCount < maxCellIndex;
+		particles[particleCount] = index;
+	}
+}; //cells are 80px by 80px and contain up to 4 particles --resize by window and particle size
+
+static const size_t cellSize = 80;
+std::vector<std::vector<Cell>> cells(800/cellSize, std::vector<Cell>(800/cellSize, Cell()));
 std::vector<Body*> particles;
 void findCollisions();
 void updatePhysicsSubtick(float dt, int subTicks);
+sf::Vector2i getCellPos(size_t row, size_t col);
 
 int main()
 {
@@ -84,6 +101,7 @@ int main()
     /*sf::CircleShape shape(10.f);
     shape.setFillColor(sf::Color::Green);*/
     particles.push_back(new Body());
+	std::cout << particles.at(0)->shape.getRadius();
     /*particles.push_back(new Body());
     particles.at(1)->setPosition(400.0f, 0.0f);
     particles.at(1)->vel.x = -40.0f;
@@ -235,4 +253,13 @@ void updatePhysicsSubtick(float dt, int subTicks)
     {
         updatePhysics(sub_dt);
     }
+}
+
+//returns position of the cell
+sf::Vector2i getCellPos(size_t row, size_t col)
+{
+	sf::Vector2i cellPos = sf::Vector2i(0,0);
+	cellPos.x = cellSize*row;
+	cellPos.y = cellSize*col;
+	return cellPos;
 }
