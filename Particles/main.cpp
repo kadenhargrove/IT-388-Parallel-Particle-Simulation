@@ -1,8 +1,16 @@
+/* TO COMPILE:
+	g++ -fopenmp -c main.cpp -I../lib/SFML-2.5.1/include
+	g++ main.o -fopenmp -o app -L../lib/SFML-2.5.1/lib -lsfml-graphics -lsfml-window -lsfml-system
+   TO RUN:
+	export LD_LIBRARY_PATH=../lib/SFML-2.5.1/lib && ./app
+*/
+
 #include <SFML/Graphics.hpp>
 #include "FPS.cpp"
 #include <sstream>
 #include <vector>
 #include <math.h>
+#include <omp.h>
 
 struct Body
 {
@@ -83,7 +91,7 @@ int main()
     //particle1.setPosition(400.0f,400.0f);
 
     FPS fps;
-    int counter = 0;
+    unsigned int counter = 0;
     int colorCounter = 0;
     while (window.isOpen())
     {
@@ -172,8 +180,11 @@ void solveCollision(Body* particle1, Body* particle2)
 
 void findCollisions() 
 {
-    for (auto particle1 : particles)
+	int i;
+	#pragma omp parallel for
+    for (i =0; i < particles.size(); i++)
     {
+		auto particle1 = particles.at(i);
         for (auto particle2 : particles)
         {
             if (particle1 != particle2)
@@ -190,9 +201,12 @@ void findCollisions()
 void updatePhysics(float dt)
 {
     const float margin = 2.0f;
-    
-    for (Body* particle : particles)
+    int i;
+
+    #pragma omp parallel for
+    for (i =0; i < particles.size(); i++)
     {
+		auto particle = particles.at(i);
         findCollisions();
         particle->update(dt);
         if (particle->pos.x > 800 - margin - particle->shape.getRadius()) {
