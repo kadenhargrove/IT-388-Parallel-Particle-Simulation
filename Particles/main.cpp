@@ -2,6 +2,7 @@
 #include "FPS.cpp"
 #include <sstream>
 #include <vector>
+#include <math.h>
 
 struct Body
 {
@@ -9,7 +10,7 @@ struct Body
     sf::Vector3f vel; // 2 m/s along x-axis
     sf::Vector3f acc; // no acceleration at first
     float mass = 1.0f; // 1kg
-    float drag = 1.0f; // rho*C*Area – simplified drag for this example
+    float drag = 1.0f; // rho*C*Area ï¿½ simplified drag for this example
     sf::CircleShape shape;
 
     Body() {
@@ -55,7 +56,7 @@ struct Body
 
     sf::Vector3f apply_forces() const
     {
-        sf::Vector3f grav_acc = sf::Vector3f( 0.0f, 40.0f, 0.0f ); // 9.81 m/s² down in the y-axis
+        sf::Vector3f grav_acc = sf::Vector3f( 0.0f, 40.0f, 0.0f ); // 9.81 m/sï¿½ down in the y-axis
         sf::Vector3f newVel = sf::Vector3f(pow(vel.x,2.0f), pow(vel.y, 2.0f), pow(vel.z, 2.0f));
         sf::Vector3f drag_force = 0.5f * drag * newVel; // D = 0.5 * (rho * C * Area * vel^2)
         sf::Vector3f drag_acc = drag_force / mass; // a = F/m
