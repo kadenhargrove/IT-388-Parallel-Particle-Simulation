@@ -77,7 +77,7 @@ struct Body
 struct Cell{
 	// static const size_t cellCapacity = 4;
 	// static const size_t maxCellIndex = cellCapacity-1;
-	std::vector<size_t> particles;
+	std::vector<size_t> *cellParticles;
 	size_t xPos;
 	size_t yPos;
 	int cellSize;
@@ -88,10 +88,11 @@ struct Cell{
 		this->yPos = yPos;
 		this->cellSize = size;
 		this->rect = new sf::FloatRect(sf::Vector2f(xPos,yPos),sf::Vector2f(size,size));
+		this->cellParticles = new std::vector<size_t>();
 	}
 
 	~Cell(){
-		this->rect.
+		delete this->rect;
 	}
 
 	// size_t particleCount = 0;
@@ -100,11 +101,11 @@ struct Cell{
 	void addParticle(size_t index){
 		// particleCount += particleCount < maxCellIndex;
 		// particles[particleCount] = index;
-		particles.push_back(index);
+		this->cellParticles->push_back(index);
 	}
 
 	void clearCell(){
-		particles.clear();
+		this->cellParticles->clear();
 	}
 }; //cells are 80px by 80px --resize by window and particle size
 
@@ -145,8 +146,10 @@ int main()
         sf::Event event;
         while (window.pollEvent(event))
         {
-            if (event.type == sf::Event::Closed)
-                window.close();
+            if (event.type == sf::Event::Closed){
+				window.close();
+			}
+                
         }
         if (counter % 15 == 0 && particles.size() < 35)
         {
@@ -245,32 +248,67 @@ void findCollisions()
     }
 }
 
-void check_cells_collisions(Cell* cell_1, Cell* cell_2)
+void findCollisionsCell(Cell* cell) 
 {
-    // #pragma omp parallel for
-    for (auto& particle1Idx : cell_1->particles)
+	int i, j;
+	#pragma omp parallel for private(j)
+    for (i =0; i < cell->cellParticles->size(); i++)
     {
-        for (auto& particle2Idx : cell_2->particles)
-        {
-            auto particle1 = particles.at(particle1Idx);
-            auto particle2 = particles.at(particle2Idx);
-            
-            if (particle1 != particle2)
+		auto particle1 = particles.at(cell->cellParticles->at(i));
+		for (j =0; j < cell->cellParticles->size(); i++)
+		{
+			auto particle2 = particles.at(cell->cellParticles->at(j));
+			if (particle1 != particle2)
             {
                 if (collide(particle1, particle2))
                 {
                     solveCollision(particle1, particle2);
                 }
             }
-        }
+		}
     }
+}
+
+void findCollisionsCells() 
+{
+	int i, j;
+	#pragma omp parallel for private(j)
+	for(i = 0; i < cells.size(); i++)
+	{
+		for(j = 0; j < cells.at(i).size(); j++)
+		{
+			auto cell = cells.at(i).at(j);
+			findCollisionsCell(cell);
+		}
+	}
+}
+
+void check_cells_collisions(Cell* cell_1, Cell* cell_2)
+{
+    // #pragma omp parallel for
+    // for (auto& particle1Idx : *cell_1->particles)
+    // {
+    //     for (auto& particle2Idx : *cell_2->particles)
+    //     {
+    //         auto particle1 = particles.at(particle1Idx);
+    //         auto particle2 = particles.at(particle2Idx);
+            
+    //         if (particle1 != particle2)
+    //         {
+    //             if (collide(particle1, particle2))
+    //             {
+    //                 solveCollision(particle1, particle2);
+    //             }
+    //         }
+    //     }
+    // }
 }
 
 void find_collisions_grid()
 {   
 	int i, j;
     //loop through rows of grid (skip top and bottom rows)
-    #pragma omp parallel for private(j)
+    // #pragma omp parallel for private(j)
     for (i = 1; i < cells.size() - 1; i++)
     {
         //loop through columns of grid (skip left and right columns)
@@ -295,13 +333,16 @@ void updatePhysics(float dt)
     const float margin = 2.0f;
     int i;
 
+	fillCells();
+	// find_collisions_grid();
+	// findCollisionsCells();
+
     #pragma omp parallel for
     for (i =0; i < particles.size(); i++)
     {
 		auto particle = particles.at(i);
-		fillCells();
+		
         // findCollisions();
-		find_collisions_grid();
         
         if (particle->pos.x > 800 - margin - particle->shape.getRadius()) {
             particle->pos.x = 800 - margin - particle->shape.getRadius();
@@ -376,16 +417,16 @@ std::vector<Cell*> getSurroundingCells(Cell* centerCell){ //BUGGED
 void fillCells(){
 	int i, j;
 
-    #pragma omp parallel for
+    // #pragma omp parallel for
     for (i =0; i < particles.size(); i++)
 	{
 		auto particle = particles.at(i);
 		auto particlePos = particle->shape.getGlobalBounds();
 		auto curCell = getCell(particle->pos.x, particle->pos.y);
+		curCell->addParticle(i);
 		auto surroundingCells = getSurroundingCells(curCell);
 		for(auto cell : surroundingCells)
 		{
-			cell->clearCell();
 			auto cellRect = *cell->rect;
 			if(particlePos.intersects(cellRect)){
 				cell->addParticle(i);
