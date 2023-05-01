@@ -10,6 +10,7 @@
 #include <sstream>
 #include <vector>
 #include <math.h>
+#include <cmath>
 #include <omp.h>
 #include <iostream>
 
@@ -74,24 +75,50 @@ struct Body
 };
 
 struct Cell{
-	static const size_t cellCapacity = 4;
-	static const size_t maxCellIndex = cellCapacity-1;
+	// static const size_t cellCapacity = 4;
+	// static const size_t maxCellIndex = cellCapacity-1;
+	std::vector<size_t> particles;
+	size_t xPos;
+	size_t yPos;
+	int cellSize;
+	sf::FloatRect* rect;
 
-	size_t particleCount = 0;
-	size_t particles[cellCapacity];
+	Cell(size_t xPos, size_t yPos, int size){
+		this->xPos = xPos;
+		this->yPos = yPos;
+		this->cellSize = size;
+		this->rect = new sf::FloatRect(sf::Vector2f(xPos,yPos),sf::Vector2f(size,size));
+	}
+
+	~Cell(){
+		this->rect.
+	}
+
+	// size_t particleCount = 0;
+	// size_t particles[cellCapacity];
 
 	void addParticle(size_t index){
-		particleCount += particleCount < maxCellIndex;
-		particles[particleCount] = index;
+		// particleCount += particleCount < maxCellIndex;
+		// particles[particleCount] = index;
+		particles.push_back(index);
 	}
-}; //cells are 80px by 80px and contain up to 4 particles --resize by window and particle size
 
+	void clearCell(){
+		particles.clear();
+	}
+}; //cells are 80px by 80px --resize by window and particle size
+
+static const size_t screenX = 800;
+static const size_t screenY = 800;
 static const size_t cellSize = 80;
-std::vector<std::vector<Cell>> cells(800/cellSize, std::vector<Cell>(800/cellSize, Cell()));
+std::vector<std::vector<Cell*>> cells(screenX/cellSize, std::vector<Cell*>(screenY/cellSize));
 std::vector<Body*> particles;
 void findCollisions();
 void updatePhysicsSubtick(float dt, int subTicks);
-sf::Vector2i getCellPos(size_t row, size_t col);
+void initializeCells();
+void fillCells();
+Cell* getCell(float xPos, float yPos);
+std::vector<Cell*> getSurroundingCells(Cell* centerCell);
 
 int main()
 {
@@ -102,6 +129,8 @@ int main()
     shape.setFillColor(sf::Color::Green);*/
     particles.push_back(new Body());
 	std::cout << particles.at(0)->shape.getRadius();
+	initializeCells();
+	fillCells();
     /*particles.push_back(new Body());
     particles.at(1)->setPosition(400.0f, 0.0f);
     particles.at(1)->vel.x = -40.0f;
@@ -216,6 +245,51 @@ void findCollisions()
     }
 }
 
+void check_cells_collisions(Cell* cell_1, Cell* cell_2)
+{
+    // #pragma omp parallel for
+    for (auto& particle1Idx : cell_1->particles)
+    {
+        for (auto& particle2Idx : cell_2->particles)
+        {
+            auto particle1 = particles.at(particle1Idx);
+            auto particle2 = particles.at(particle2Idx);
+            
+            if (particle1 != particle2)
+            {
+                if (collide(particle1, particle2))
+                {
+                    solveCollision(particle1, particle2);
+                }
+            }
+        }
+    }
+}
+
+void find_collisions_grid()
+{   
+	int i, j;
+    //loop through rows of grid (skip top and bottom rows)
+    #pragma omp parallel for private(j)
+    for (i = 1; i < cells.size() - 1; i++)
+    {
+        //loop through columns of grid (skip left and right columns)
+        for (j = 1; j < cells.at(i).size() - 1; j++)
+        {
+            Cell* current_cell = getCell(i, j);
+            //Iterate on all surrounding cells, including current one
+            for (int dx = -1; dx <= 1; dx++)
+            {
+                for (int dy = -1; dy <= 1; dy++)
+                {
+                    Cell* other_cell = getCell(i + dx, j + dy);
+                    check_cells_collisions(current_cell, other_cell);
+                }
+            }
+        }
+    }
+}
+
 void updatePhysics(float dt)
 {
     const float margin = 2.0f;
@@ -225,24 +299,31 @@ void updatePhysics(float dt)
     for (i =0; i < particles.size(); i++)
     {
 		auto particle = particles.at(i);
-        findCollisions();
-        particle->update(dt);
+		fillCells();
+        // findCollisions();
+		find_collisions_grid();
+        
         if (particle->pos.x > 800 - margin - particle->shape.getRadius()) {
             particle->pos.x = 800 - margin - particle->shape.getRadius();
             particle->updatePositionByBody();
+			particle->vel = sf::Vector3f(-particle->vel.x,particle->vel.y,particle->vel.z);
         }
         else if (particle->pos.x < margin + particle->shape.getRadius()) {
             particle->pos.x = margin + particle->shape.getRadius();
             particle->updatePositionByBody();
+			particle->vel = sf::Vector3f(-particle->vel.x,particle->vel.y,particle->vel.z);
         }
         if (particle->pos.y > 800 - margin - particle->shape.getRadius()) {
             particle->pos.y = 800 - margin - particle->shape.getRadius();
             particle->updatePositionByBody();
+			particle->vel = sf::Vector3f(particle->vel.x,-particle->vel.y,particle->vel.z);
         }
         else if (particle->pos.y < margin + particle->shape.getRadius()) {
             particle->pos.y = margin + particle->shape.getRadius();
             particle->updatePositionByBody();
+			particle->vel = sf::Vector3f(particle->vel.x,-particle->vel.y,particle->vel.z);
         }
+		particle->update(dt);
     }
 }
 
@@ -255,11 +336,61 @@ void updatePhysicsSubtick(float dt, int subTicks)
     }
 }
 
-//returns position of the cell
-sf::Vector2i getCellPos(size_t row, size_t col)
-{
-	sf::Vector2i cellPos = sf::Vector2i(0,0);
-	cellPos.x = cellSize*row;
-	cellPos.y = cellSize*col;
-	return cellPos;
+void initializeCells(){
+	int i, j;
+	#pragma omp parallel for private(j)
+	for(i = 0; i < cells.size(); i++)
+	{
+		size_t curX = screenX/cellSize * i;
+		for(j = 0; j < cells.at(i).size(); j++)
+		{
+			size_t curY = screenY/cellSize * j;
+			cells.at(i).at(j) = new Cell(curX, curY, cellSize);
+		}
+	}
+}
+
+Cell* getCell(float xPos, float yPos){
+	int idx = std::floor(xPos/cellSize);
+	int idy = std::floor(yPos/cellSize);
+	return cells.at(idx).at(idy);
+}
+
+std::vector<Cell*> getSurroundingCells(Cell* centerCell){ //BUGGED
+	auto posx = centerCell->xPos;
+	auto posy = centerCell->yPos;
+	int idx = std::floor(posx/cellSize);
+	int idy = std::floor(posy/cellSize);
+	std::vector<Cell*> result;
+	if(idx - 1 >=0 && idy -1 >=0) result.push_back(cells.at(idx - 1).at(idy -1)); //top left
+	if(idy -1 >=0) result.push_back(cells.at(idx).at(idy -1)); //top center
+	if(idx +1<=cells.size() && idy -1 >=0) result.push_back(cells.at(idx+1).at(idy -1)); //top right
+	if(idx-1 >=0) result.push_back(cells.at(idx-1).at(idy)); //left
+	if(idx+1 <=cells.size()) result.push_back(cells.at(idx+1).at(idy)); //right
+	if(idx - 1 >=0 && idy +1 <=cells.at(idx - 1).size()) result.push_back(cells.at(idx - 1).at(idy +1)); //top left
+	if(idy +1 <=cells.at(idx).size()) result.push_back(cells.at(idx).at(idy +1)); //top center
+	if(idx +1<=cells.size() && idy +1 <=cells.at(idx + 1).size()) result.push_back(cells.at(idx+1).at(idy +1)); //top right
+	return result;
+}
+
+void fillCells(){
+	int i, j;
+
+    #pragma omp parallel for
+    for (i =0; i < particles.size(); i++)
+	{
+		auto particle = particles.at(i);
+		auto particlePos = particle->shape.getGlobalBounds();
+		auto curCell = getCell(particle->pos.x, particle->pos.y);
+		auto surroundingCells = getSurroundingCells(curCell);
+		for(auto cell : surroundingCells)
+		{
+			cell->clearCell();
+			auto cellRect = *cell->rect;
+			if(particlePos.intersects(cellRect)){
+				cell->addParticle(i);
+			}
+		}
+		
+	}
 }
