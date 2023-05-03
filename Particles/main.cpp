@@ -440,7 +440,7 @@ void clearCells() {
 void fillCells(){
 	unsigned int i;
     clearCells();
-    #pragma omp parallel for
+    //#pragma omp parallel for
     for (i =0; i < particles.size(); i++)
 	{
 		Body* particle = particles.at(i);
