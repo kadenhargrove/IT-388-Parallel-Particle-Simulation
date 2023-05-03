@@ -19,18 +19,18 @@
 struct Body
 {
     sf::Vector2f pos;
-    sf::Vector2f vel; // 2 m/s along x-axis
-    sf::Vector2f acc; // no acceleration at first
+    sf::Vector2f vel;
+    sf::Vector2f acc;
     float mass = 1.0f; // 1kg
     float drag = 1.0f; // rho*C*Area � simplified drag for this example
-	float radius = 10.f;
+	float radius = 5.0f; //size of each circle
     sf::CircleShape shape;
 
     Body() {
         this->pos = sf::Vector2f(0.0f, 0.0f);
-        this->vel = sf::Vector2f(50.0f, 0.0f);
+        this->vel = sf::Vector2f(75.0f, 0.0f);
         this->acc = sf::Vector2f(0.0f, 0.0f);
-        this->shape = sf::CircleShape(10.f);
+        this->shape = sf::CircleShape(radius);
         this->shape.setOrigin(this->radius, this->radius);
         this->shape.setPosition(this->pos);
     }
@@ -58,7 +58,7 @@ struct Body
 
     sf::Vector2f apply_forces() const
     {
-        sf::Vector2f grav_acc = sf::Vector2f( 0.0f, 40.0f); //
+        sf::Vector2f grav_acc = sf::Vector2f( 0.0f, 200.0f); //
         sf::Vector2f drag_force = 0.5f * drag * vel; // D = 0.5 * (rho * C * Area * vel^2)
         sf::Vector2f drag_acc = drag_force / mass; // a = F/m
         return grav_acc- drag_acc;
@@ -72,38 +72,26 @@ struct Cell{
 	int xPos;
 	int yPos;
 	int cellSize;
-	/*sf::FloatRect* rect;*/
-    /*size_t particleCount = 0;
-    size_t* cellParticles;*/
 
 	Cell(int xPos, int yPos, int size){
 		this->xPos = xPos;
 		this->yPos = yPos;
 		this->cellSize = size;
-        //this->cellParticles = new size_t[cellCapacity];
-		//this->rect = new sf::FloatRect(sf::Vector2f(xPos,yPos),sf::Vector2f(size,size));
 		this->cellParticles = new std::vector<unsigned int>();
 	}
 
-	/*~Cell(){
-		delete this->rect;
-	}*/
-
 	void addParticle(unsigned int index){
-		 /*this->particleCount += particleCount < maxCellIndex;
-         this->cellParticles[particleCount] = index;*/
 		this->cellParticles->push_back(index);
 	}
 
 	void clearCell(){
 		this->cellParticles->clear();
-        /*this->particleCount = 0;*/
 	}
 };
 
 static const int screenX = 800;
 static const int screenY = 800;
-static const int cellSize = 40;
+static const int cellSize = 20; //should only ever be as small as the diameter of a particle
 std::vector<std::vector<Cell*>> cells(screenX/cellSize, std::vector<Cell*>(screenY/cellSize));
 std::vector<Body*> particles;
 
@@ -128,7 +116,7 @@ int main(int argc, char **argv)
     }
     
     int nThreads = atoi(argv[1]);
-    int nParticles = atoi(argv[2]);
+    unsigned int nParticles = static_cast<unsigned int>(atoi(argv[2]));
 
     omp_set_num_threads(nThreads);
 
@@ -144,7 +132,9 @@ int main(int argc, char **argv)
 
     FPS fps;
     unsigned int counter = 0;
-    int colorCounter = 0;
+    unsigned int colorCounter = 0;
+	unsigned int rgbCounter = 0;
+	bool colorUp = true;
 
     sf::Font font; //set font
     if(!font.loadFromFile("./UbuntuMono-BI.ttf"))
@@ -176,14 +166,38 @@ int main(int argc, char **argv)
 			}
                 
         }
-        if (counter % 15 == 0 && particles.size() < nParticles)
+        if (counter % 10 == 0 && particles.size() < nParticles)
         {
             Body* newBody = new Body();
-            if (colorCounter == 0) newBody->shape.setFillColor(sf::Color(255, 0, 0, 255));
-            if (colorCounter == 1) newBody->shape.setFillColor(sf::Color(0, 255, 0, 255));
-            if (colorCounter == 2) newBody->shape.setFillColor(sf::Color(0, 0, 255, 255));
-            if (colorCounter < 2) colorCounter++;
-            else colorCounter = 0;
+            if (colorCounter == 0) newBody->shape.setFillColor(sf::Color(255, 0, rgbCounter, 255));
+            if (colorCounter == 1) newBody->shape.setFillColor(sf::Color(rgbCounter, 0, 255, 255));
+            if (colorCounter == 2) newBody->shape.setFillColor(sf::Color(0, rgbCounter, 255, 255));
+			if (colorCounter == 3) newBody->shape.setFillColor(sf::Color(0, 255, rgbCounter, 255));
+            if (colorCounter == 4) newBody->shape.setFillColor(sf::Color(rgbCounter, 255, 0, 255));
+            if (colorCounter == 5) newBody->shape.setFillColor(sf::Color(255, rgbCounter, 0, 255));
+            if(colorUp)
+			{
+				if(rgbCounter<254) rgbCounter+=25;
+				else 
+				{
+					rgbCounter = 255;
+					if(colorCounter == 5) colorCounter = 0;
+					else colorCounter++;
+					colorUp = false;
+				}
+			}
+			else
+			{
+				if(rgbCounter>1) rgbCounter-=25;
+				else
+				{
+					rgbCounter = 0;
+					if(colorCounter == 5) colorCounter = 0;
+					else colorCounter++;
+					colorUp = true;
+				} 
+			}
+			
             particles.push_back(newBody);
         }
 
@@ -220,6 +234,46 @@ int main(int argc, char **argv)
     particles.clear();
     return 0;
 }
+
+// void colorLoop(){ //just for gradient notes
+// 	for(int colorStep=0; colorStep <= 255; colorStep++) 
+// 	{
+// 		int r = 255;
+// 		int g = 0;
+// 		int b = colorStep;
+//   	}
+//   //into blue
+//   	for(int colorStep=255; colorStep >= 0; colorStep--) 
+// 	{
+//     	int r = colorStep;
+//     	int g = 0;
+//     	int b = 255;
+//   	}
+//   //start from blue
+//   for(int colorStep=0; colorStep <= 255; colorStep++) {
+//     int r = 0;
+//     int g = colorStep;
+//     int b = 255;
+//   }
+//   //into green
+//   for(int colorStep=255; colorStep >= 0; colorStep--) {
+//     int r = 0;
+//     int g = 255;
+//     int b = colorStep;
+//   }
+//   //start from green
+//   for(int colorStep=0; colorStep <= 255; colorStep++) {
+//     int r = colorStep;
+//     int g = 255;
+//     int b = 0;
+//     }
+//   //into yellow
+//   for(int colorStep=255; colorStep >= 0; colorStep--) {
+//     int r = 255;
+//     int g = colorStep;
+//     int b = 0;
+//   }
+// }
 
 bool collide(Body* particle1, Body* particle2)
 {
@@ -297,30 +351,15 @@ void check_cells_collisions(Cell* cell_1, Cell* cell_2)
 void find_collisions_grid()
 {   
 	unsigned int i, j;
-    //loop through rows of grid (skip top and bottom rows)
+    //loop through rows of grid
      #pragma omp parallel for private(j)
     for (i = 0; i < cells.size(); i++)
     {
-        //loop through columns of grid (skip left and right columns)
+        //loop through columns of grid
         for (j = 0; j < cells.at(i).size(); j++)
         {
             Cell* current_cell = cells.at(i).at(j);
-            //Iterate on all surrounding cells, including current one
-            //if (i == 0 || j == 0 || i == cells.size() - 1 || j == cells.at(i).size() - 1) 
-            //{
-                check_cells_collisions(current_cell, current_cell);
-            //}
-            //else
-            //{
-            //    for (int dx = -1; dx <= 1; dx++)
-            //    {
-            //        for (int dy = -1; dy <= 1; dy++)
-            //        {
-            //            Cell* other_cell = cells.at(i + dx).at(j + dy);
-            //            check_cells_collisions(current_cell, other_cell);
-            //        }
-            //    }
-            //}
+            check_cells_collisions(current_cell, current_cell);
         }
     }
 }
@@ -343,25 +382,25 @@ void updatePhysics(float dt)
         if (particle->pos.x > screenX - margin - particle->radius) {
             particle->pos.x = screenX - margin - particle->radius;
             particle->setPosition(particle->pos); //remove for expanseVer
-			particle->vel = sf::Vector2f(-particle->vel.x,particle->vel.y);
+			// particle->vel = sf::Vector2f(-particle->vel.x,particle->vel.y);
 			
         }
         else if (particle->pos.x < margin + particle->radius) {
             particle->pos.x = margin + particle->radius;
             particle->setPosition(particle->pos); //remove for expanseVer
-			particle->vel = sf::Vector2f(-particle->vel.x,particle->vel.y);
+			// particle->vel = sf::Vector2f(-particle->vel.x,particle->vel.y);
 			
         }
         if (particle->pos.y > screenY - margin - particle->radius) {
             particle->pos.y = screenY - margin - particle->radius;
             particle->setPosition(particle->pos); //remove for expanseVer
-			particle->vel = sf::Vector2f(particle->vel.x,-particle->vel.y);
+			// particle->vel = sf::Vector2f(particle->vel.x,-particle->vel.y);
 			
         }
         else if (particle->pos.y < margin + particle->radius) {
             particle->pos.y = margin + particle->radius;
             particle->setPosition(particle->pos); //remove for expanseVer
-			particle->vel = sf::Vector2f(particle->vel.x,-particle->vel.y);
+			// particle->vel = sf::Vector2f(particle->vel.x,-particle->vel.y);
 			
         }
 		particle->update(dt);
@@ -417,18 +456,23 @@ void fillCells(){
 	{
 		Body* particle = particles.at(i);
 		Cell* curCell = getCell(particle->pos);
+		#pragma omp critical
 		curCell->addParticle(i);
         sf::Vector2f leftTop = sf::Vector2f(particle->pos.x - particle->radius, particle->pos.y - particle->radius);
         curCell = getCell(leftTop);
+		#pragma omp critical
         curCell->addParticle(i);
         sf::Vector2f rightTop = sf::Vector2f(leftTop.x + particle->radius + particle->radius, leftTop.y);
         curCell = getCell(rightTop);
+		#pragma omp critical
         curCell->addParticle(i);
         sf::Vector2f leftBottom = sf::Vector2f(particle->pos.x - particle->radius, particle->pos.y + particle->radius);
         curCell = getCell(leftBottom);
+		#pragma omp critical
         curCell->addParticle(i);
         sf::Vector2f rightBottom = sf::Vector2f(leftBottom.x + particle->radius + particle->radius, leftBottom.y);
         curCell = getCell(rightBottom);
+		#pragma omp critical
         curCell->addParticle(i);
 	}
 }
