@@ -110,13 +110,12 @@ std::vector<Body*> particles;
 bool collide(Body* particle1, Body* particle2);
 void solveCollision(Body* particle1, Body* particle2);
 void findCollisions();
-void findCollisionsInCell(Cell* cell);
 void check_cells_collisions(Cell* cell_1, Cell* cell_2);
 void find_collisions_grid();
 void updatePhysics(float dt);
 void updatePhysicsSubtick(float dt, int subTicks);
 void initializeCells();
-Cell* getCell(float xPos, float yPos);
+Cell* getCell(sf::Vector2f);
 void clearCells();
 void fillCells();
 
@@ -271,14 +270,15 @@ void findCollisions()
 
 void check_cells_collisions(Cell* cell_1, Cell* cell_2)
 {
+     unsigned int i, j;
      auto cell1Particles = *cell_1->cellParticles;
      auto cell1ParticlesSize = cell1Particles.size();
      auto cell2Particles = *cell_2->cellParticles;
      auto cell2ParticlesSize = cell2Particles.size();
-    //  #pragma omp parallel for 
-     for (unsigned int i = 0; i < cell1ParticlesSize;  i++)
+     #pragma omp parallel for 
+     for (i = 0; i < cell1ParticlesSize;  i++)
      {
-         for (unsigned int j = 0; j < cell2ParticlesSize; j++)
+         for (j = 0; j < cell2ParticlesSize; j++)
          {
              auto particle1 = particles.at(cell1Particles[i]);
              auto particle2 = particles.at(cell2Particles[j]);
@@ -298,7 +298,7 @@ void find_collisions_grid()
 {   
 	unsigned int i, j;
     //loop through rows of grid (skip top and bottom rows)
-    // #pragma omp parallel for private(j)
+     #pragma omp parallel for private(j)
     for (i = 0; i < cells.size(); i++)
     {
         //loop through columns of grid (skip left and right columns)
@@ -306,21 +306,21 @@ void find_collisions_grid()
         {
             Cell* current_cell = cells.at(i).at(j);
             //Iterate on all surrounding cells, including current one
-            if (i == 0 || j == 0 || i == cells.size() - 1 || j == cells.at(i).size() - 1) 
-            {
+            //if (i == 0 || j == 0 || i == cells.size() - 1 || j == cells.at(i).size() - 1) 
+            //{
                 check_cells_collisions(current_cell, current_cell);
-            }
-            else
-            {
-                for (int dx = -1; dx <= 1; dx++)
-                {
-                    for (int dy = -1; dy <= 1; dy++)
-                    {
-                        Cell* other_cell = cells.at(i + dx).at(j + dy);
-                        check_cells_collisions(current_cell, other_cell);
-                    }
-                }
-            }
+            //}
+            //else
+            //{
+            //    for (int dx = -1; dx <= 1; dx++)
+            //    {
+            //        for (int dy = -1; dy <= 1; dy++)
+            //        {
+            //            Cell* other_cell = cells.at(i + dx).at(j + dy);
+            //            check_cells_collisions(current_cell, other_cell);
+            //        }
+            //    }
+            //}
         }
     }
 }
@@ -391,28 +391,11 @@ void initializeCells(){
 	}
 }
 
-Cell* getCell(float xPos, float yPos){
-	unsigned int idx = static_cast<unsigned int>(xPos/cellSize);
-	unsigned int idy = static_cast<unsigned int>(yPos/cellSize);
+Cell* getCell(sf::Vector2f vec){
+	unsigned int idx = static_cast<unsigned int>(vec.x/cellSize);
+	unsigned int idy = static_cast<unsigned int>(vec.y/cellSize);
 	return cells.at(idx).at(idy);
 }
-
-// std::vector<Cell*> getSurroundingCells(Cell* centerCell){
-// 	auto posx = centerCell->xPos;
-// 	auto posy = centerCell->yPos;
-// 	int idx = std::floor(posx/cellSize);
-// 	int idy = std::floor(posy/cellSize);
-// 	std::vector<Cell*> result;
-// 	if(idx - 1 >=0 && idy -1 >=0) result.push_back(cells.at(idx - 1).at(idy -1)); //top left
-// 	if(idy -1 >=0) result.push_back(cells.at(idx).at(idy -1)); //top center
-// 	if(idx +1<=cells.size() && idy -1 >=0) result.push_back(cells.at(idx+1).at(idy -1)); //top right
-// 	if(idx-1 >=0) result.push_back(cells.at(idx-1).at(idy)); //left
-// 	if(idx+1 <=cells.size()) result.push_back(cells.at(idx+1).at(idy)); //right
-// 	if(idx - 1 >=0 && idy +1 <=cells.at(idx - 1).size()) result.push_back(cells.at(idx - 1).at(idy +1)); //top left
-// 	if(idy +1 <=cells.at(idx).size()) result.push_back(cells.at(idx).at(idy +1)); //top center
-// 	if(idx +1<=cells.size() && idy +1 <=cells.at(idx + 1).size()) result.push_back(cells.at(idx+1).at(idy +1)); //top right
-// 	return result;
-// }
 
 void clearCells() {
     unsigned int i, j;
@@ -429,21 +412,23 @@ void clearCells() {
 void fillCells(){
 	unsigned int i;
     clearCells();
-    //#pragma omp parallel for
+    #pragma omp parallel for
     for (i =0; i < particles.size(); i++)
 	{
 		Body* particle = particles.at(i);
-		Cell* curCell = getCell(particle->pos.x, particle->pos.y);
+		Cell* curCell = getCell(particle->pos);
 		curCell->addParticle(i);
-        //auto particlePos = particle->shape.getGlobalBounds();
-		/*auto surroundingCells = getSurroundingCells(curCell);
-		for(auto cell : surroundingCells)
-		{
-			auto cellRect = *cell->rect;
-			if(particlePos.intersects(cellRect)){
-				cell->addParticle(i);
-			}
-		}*/
-		
+        sf::Vector2f leftTop = sf::Vector2f(particle->pos.x - particle->radius, particle->pos.y - particle->radius);
+        curCell = getCell(leftTop);
+        curCell->addParticle(i);
+        sf::Vector2f rightTop = sf::Vector2f(leftTop.x + particle->radius + particle->radius, leftTop.y);
+        curCell = getCell(rightTop);
+        curCell->addParticle(i);
+        sf::Vector2f leftBottom = sf::Vector2f(particle->pos.x - particle->radius, particle->pos.y + particle->radius);
+        curCell = getCell(leftBottom);
+        curCell->addParticle(i);
+        sf::Vector2f rightBottom = sf::Vector2f(leftBottom.x + particle->radius + particle->radius, leftBottom.y);
+        curCell = getCell(rightBottom);
+        curCell->addParticle(i);
 	}
 }
