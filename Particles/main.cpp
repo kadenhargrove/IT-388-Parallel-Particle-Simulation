@@ -3,6 +3,8 @@
 	g++ main.o -fopenmp -o app -L../lib/SFML-2.5.1/lib -lsfml-graphics -lsfml-window -lsfml-system
    TO RUN:
 	export LD_LIBRARY_PATH=../lib/SFML-2.5.1/lib && ./app
+
+	DEBUG: g++ -fopenmp -g -Wall -Wextra -pedantic -c main.cpp -I../lib/SFML-2.5.1/include
 */
 
 #include <SFML/Graphics.hpp>
@@ -111,7 +113,6 @@ void updatePhysicsSubtick(float dt, int subTicks);
 void initializeCells();
 void fillCells();
 Cell* getCell(int xPos, int yPos);
-std::vector<Cell*> getSurroundingCells(Cell* centerCell);
 void findCollisionsInCell(Cell* cell);
 
 int main()
@@ -137,6 +138,9 @@ int main()
         while (window.pollEvent(event))
         {
             if (event.type == sf::Event::Closed){
+				for(Body* particle:particles){
+					delete particle;
+				}
 				window.close();
 			}
                 
@@ -243,7 +247,7 @@ void findCollisionsInCell(Cell* cell)
     }
 }
 
-void check_cells_collisions(Cell* cell_1, Cell* cell_2)
+void check_cells_collisions(Cell* cell_1, Cell* cell_2, float dt)
 {
      auto cell1Particles = *cell_1->cellParticles;
      auto cell1ParticlesSize = cell1Particles.size();
@@ -261,14 +265,14 @@ void check_cells_collisions(Cell* cell_1, Cell* cell_2)
              {
                  if (collide(particle1, particle2))
                  {
-                     solveCollision(particle1, particle2);
+                    solveCollision(particle1, particle2);
                  }
              }
          }
      }
 }
 
-void find_collisions_grid()
+void find_collisions_grid(float dt)
 {   
 	unsigned int i, j;
     //loop through rows of grid (skip top and bottom rows)
@@ -279,7 +283,7 @@ void find_collisions_grid()
         for (j = 1; j < cells.at(i).size() - 1; j++)
         {
             Cell* current_cell = cells.at(i).at(j);
-            // check_cells_collisions(current_cell, current_cell);
+            // check_cells_collisions(current_cell, current_cell, dt);
 			// findCollisionsInCell(current_cell);
             //Iterate on all surrounding cells, including current one
             for (int dx = -1; dx <= 1; dx++)
@@ -287,7 +291,7 @@ void find_collisions_grid()
                 for (int dy = -1; dy <= 1; dy++)
                 {
                     Cell* other_cell = cells.at(i + dx).at(j + dy);
-                    check_cells_collisions(current_cell, other_cell);
+                    check_cells_collisions(current_cell, other_cell, dt);
                 }
             }
         }
@@ -300,7 +304,7 @@ void updatePhysics(float dt)
     unsigned int i;
 
 	fillCells();
-	find_collisions_grid();
+	find_collisions_grid(dt);
 
     #pragma omp parallel for
     for (i =0; i < particles.size(); i++)
@@ -313,21 +317,25 @@ void updatePhysics(float dt)
             particle->pos.x = screenX - margin - particle->radius;
             particle->setPosition(particle->pos); //remove for expanseVer
 			particle->vel = sf::Vector2f(-particle->vel.x,particle->vel.y);
+			
         }
         else if (particle->pos.x < margin + particle->radius) {
             particle->pos.x = margin + particle->radius;
             particle->setPosition(particle->pos); //remove for expanseVer
 			particle->vel = sf::Vector2f(-particle->vel.x,particle->vel.y);
+			
         }
         if (particle->pos.y > screenY - margin - particle->radius) {
             particle->pos.y = screenY - margin - particle->radius;
             particle->setPosition(particle->pos); //remove for expanseVer
 			particle->vel = sf::Vector2f(particle->vel.x,-particle->vel.y);
+			
         }
         else if (particle->pos.y < margin + particle->radius) {
             particle->pos.y = margin + particle->radius;
             particle->setPosition(particle->pos); //remove for expanseVer
 			particle->vel = sf::Vector2f(particle->vel.x,-particle->vel.y);
+			
         }
 		particle->update(dt);
     }
