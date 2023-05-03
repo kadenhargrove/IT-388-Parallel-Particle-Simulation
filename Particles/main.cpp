@@ -138,9 +138,6 @@ int main()
         while (window.pollEvent(event))
         {
             if (event.type == sf::Event::Closed){
-				for(Body* particle:particles){
-					delete particle;
-				}
 				window.close();
 			}
                 
