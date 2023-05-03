@@ -16,17 +16,17 @@
 
 struct Body
 {
-    sf::Vector3f pos;
-    sf::Vector3f vel; // 2 m/s along x-axis
-    sf::Vector3f acc; // no acceleration at first
+    sf::Vector2f pos;
+    sf::Vector2f vel; // 2 m/s along x-axis
+    sf::Vector2f acc; // no acceleration at first
     float mass = 1.0f; // 1kg
     float drag = 1.0f; // rho*C*Area � simplified drag for this example
     sf::CircleShape shape;
 
     Body() {
-        this->pos = sf::Vector3f(0.0f, 0.0f, 0.0f);
-        this->vel = sf::Vector3f(50.0f, 0.0f, 0.0f);
-        this->acc = sf::Vector3f(0.0f, 0.0f, 0.0f);
+        this->pos = sf::Vector2f(0.0f, 0.0f);
+        this->vel = sf::Vector2f(50.0f, 0.0f);
+        this->acc = sf::Vector2f(0.0f, 0.0f);
         this->shape = sf::CircleShape(10.f);
         this->shape.setOrigin(this->shape.getRadius(), this->shape.getRadius());
         this->shape.setPosition(this->pos.x, this->pos.y);
@@ -38,38 +38,37 @@ struct Body
      */
     void update(float dt)
     {
-        sf::Vector3f new_pos = this->pos + this->vel * dt + this->acc * (dt * dt * 0.5f);
-        sf::Vector3f new_acc = apply_forces(); // only needed if acceleration is not constant
+        sf::Vector2f new_pos = this->pos + this->vel * dt + this->acc * (dt * dt * 0.5f);
+        sf::Vector2f new_acc = apply_forces(); // only needed if acceleration is not constant
         //sf::Vector3f new_acc = sf::Vector3f(0.0f, 9.81f, 0.0f);
-        sf::Vector3f new_vel = this->vel + (this->acc + new_acc) * (dt * 0.5f);
+        sf::Vector2f new_vel = this->vel + (this->acc + new_acc) * (dt * 0.5f);
         this->pos = new_pos;
         this->vel = new_vel;
         this->acc = new_acc;
         this->shape.setPosition(this->pos.x, this->pos.y);
     }
 
-    void setPosition(float x, float y) 
+    void setPosition(sf::Vector2f vec) 
     {
-        this->pos = sf::Vector3f(x, y, 0.0f);
+        this->pos = vec;
         this->shape.setPosition(this->pos.x, this->pos.y);
     }
 
     void updatePositionByShape()
     {
-        this->pos = sf::Vector3f(this->shape.getPosition().x, this->shape.getPosition().y, 0.0f);
+        this->pos = this->shape.getPosition();
     }
 
     void updatePositionByBody()
     {
-        this->shape.setPosition(this->pos.x, this->pos.y);
+        this->shape.setPosition(this->pos);
     }
 
-    sf::Vector3f apply_forces() const
+    sf::Vector2f apply_forces() const
     {
-        sf::Vector3f grav_acc = sf::Vector3f( 0.0f, 40.0f, 0.0f ); // 9.81 m/s� down in the y-axis
-        // sf::Vector3f newVel = sf::Vector3f(pow(vel.x,2.0f), pow(vel.y, 2.0f), pow(vel.z, 2.0f));
-        sf::Vector3f drag_force = 0.5f * drag * vel; // D = 0.5 * (rho * C * Area * vel^2)
-        sf::Vector3f drag_acc = drag_force / mass; // a = F/m
+        sf::Vector2f grav_acc = sf::Vector2f( 0.0f, 40.0f); //
+        sf::Vector2f drag_force = 0.5f * drag * vel; // D = 0.5 * (rho * C * Area * vel^2)
+        sf::Vector2f drag_acc = drag_force / mass; // a = F/m
         return grav_acc- drag_acc;
     }
 };
@@ -108,7 +107,7 @@ struct Cell{
 		this->cellParticles->clear();
         /*this->particleCount = 0;*/
 	}
-}; //cells are 80px by 80px --resize by window and particle size
+};
 
 static const size_t screenX = 800;
 static const size_t screenY = 800;
@@ -338,25 +337,25 @@ void updatePhysics(float dt)
 		
         //findCollisions();
         
-        if (particle->pos.x > 800 - margin - particle->shape.getRadius()) {
-            particle->pos.x = 800 - margin - particle->shape.getRadius();
+        if (particle->pos.x > screenX - margin - particle->shape.getRadius()) {
+            particle->pos.x = screenX - margin - particle->shape.getRadius();
             particle->updatePositionByBody();
-			particle->vel = sf::Vector3f(-particle->vel.x,particle->vel.y,particle->vel.z);
+			particle->vel = sf::Vector2f(-particle->vel.x,particle->vel.y);
         }
         else if (particle->pos.x < margin + particle->shape.getRadius()) {
             particle->pos.x = margin + particle->shape.getRadius();
             particle->updatePositionByBody();
-			particle->vel = sf::Vector3f(-particle->vel.x,particle->vel.y,particle->vel.z);
+			particle->vel = sf::Vector2f(-particle->vel.x,particle->vel.y);
         }
-        if (particle->pos.y > 800 - margin - particle->shape.getRadius()) {
-            particle->pos.y = 800 - margin - particle->shape.getRadius();
+        if (particle->pos.y > screenY - margin - particle->shape.getRadius()) {
+            particle->pos.y = screenY - margin - particle->shape.getRadius();
             particle->updatePositionByBody();
-			particle->vel = sf::Vector3f(particle->vel.x,-particle->vel.y,particle->vel.z);
+			particle->vel = sf::Vector2f(particle->vel.x,-particle->vel.y);
         }
         else if (particle->pos.y < margin + particle->shape.getRadius()) {
             particle->pos.y = margin + particle->shape.getRadius();
             particle->updatePositionByBody();
-			particle->vel = sf::Vector3f(particle->vel.x,-particle->vel.y,particle->vel.z);
+			particle->vel = sf::Vector2f(particle->vel.x,-particle->vel.y);
         }
 		particle->update(dt);
     }
