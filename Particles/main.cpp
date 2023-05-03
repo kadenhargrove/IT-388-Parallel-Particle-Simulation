@@ -107,13 +107,18 @@ static const int cellSize = 40;
 std::vector<std::vector<Cell*>> cells(screenX/cellSize, std::vector<Cell*>(screenY/cellSize));
 std::vector<Body*> particles;
 
+bool collide(Body* particle1, Body* particle2);
+void solveCollision(Body* particle1, Body* particle2);
 void findCollisions();
+void findCollisionsInCell(Cell* cell);
+void check_cells_collisions(Cell* cell_1, Cell* cell_2);
+void find_collisions_grid();
 void updatePhysics(float dt);
 void updatePhysicsSubtick(float dt, int subTicks);
 void initializeCells();
+Cell* getCell(float xPos, float yPos);
+void clearCells();
 void fillCells();
-Cell* getCell(int xPos, int yPos);
-void findCollisionsInCell(Cell* cell);
 
 int main()
 {
@@ -223,28 +228,7 @@ void findCollisions()
     }
 }
 
-void findCollisionsInCell(Cell* cell) 
-{
-	unsigned int i, j;
-    //#pragma omp parallel for private(j)
-    auto cellParticles = *cell->cellParticles;
-    auto cellParticlesSize = cellParticles.size();
-    for (i = 0; i < cellParticlesSize; i++) {
-        //std::cout << " Particle: " << cell->cellParticles->at(i);
-        Body* particle1 = particles.at(cellParticles.at(i));
-        for (j = 0; j < cellParticlesSize; j++) {
-            if (i != j) {
-                Body* particle2 = particles.at(cellParticles.at(j));
-                if (collide(particle1, particle2))
-                {
-                    solveCollision(particle1, particle2);
-                }
-            }
-        }
-    }
-}
-
-void check_cells_collisions(Cell* cell_1, Cell* cell_2, float dt)
+void check_cells_collisions(Cell* cell_1, Cell* cell_2)
 {
      auto cell1Particles = *cell_1->cellParticles;
      auto cell1ParticlesSize = cell1Particles.size();
@@ -269,26 +253,31 @@ void check_cells_collisions(Cell* cell_1, Cell* cell_2, float dt)
      }
 }
 
-void find_collisions_grid(float dt)
+void find_collisions_grid()
 {   
 	unsigned int i, j;
     //loop through rows of grid (skip top and bottom rows)
     // #pragma omp parallel for private(j)
-    for (i = 1; i < cells.size() - 1; i++)
+    for (i = 0; i < cells.size(); i++)
     {
         //loop through columns of grid (skip left and right columns)
-        for (j = 1; j < cells.at(i).size() - 1; j++)
+        for (j = 0; j < cells.at(i).size(); j++)
         {
             Cell* current_cell = cells.at(i).at(j);
-            // check_cells_collisions(current_cell, current_cell, dt);
-			// findCollisionsInCell(current_cell);
             //Iterate on all surrounding cells, including current one
-            for (int dx = -1; dx <= 1; dx++)
+            if (i == 0 || j == 0 || i == cells.size() - 1 || j == cells.at(i).size() - 1) 
             {
-                for (int dy = -1; dy <= 1; dy++)
+                check_cells_collisions(current_cell, current_cell);
+            }
+            else
+            {
+                for (int dx = -1; dx <= 1; dx++)
                 {
-                    Cell* other_cell = cells.at(i + dx).at(j + dy);
-                    check_cells_collisions(current_cell, other_cell, dt);
+                    for (int dy = -1; dy <= 1; dy++)
+                    {
+                        Cell* other_cell = cells.at(i + dx).at(j + dy);
+                        check_cells_collisions(current_cell, other_cell);
+                    }
                 }
             }
         }
@@ -301,7 +290,7 @@ void updatePhysics(float dt)
     unsigned int i;
 
 	fillCells();
-	find_collisions_grid(dt);
+	find_collisions_grid();
 
     #pragma omp parallel for
     for (i =0; i < particles.size(); i++)
@@ -399,7 +388,7 @@ void clearCells() {
 void fillCells(){
 	unsigned int i;
     clearCells();
-    #pragma omp parallel for
+    //#pragma omp parallel for
     for (i =0; i < particles.size(); i++)
 	{
 		Body* particle = particles.at(i);
