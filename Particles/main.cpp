@@ -81,9 +81,13 @@ void findCollisions();
 void updatePhysics(float dt);
 void updatePhysicsSubtick(float dt, int subTicks);
 
-int main()
+int main(int argc, char **argv)
 {
-    omp_set_num_threads(8);
+    int nThreads = atoi(argv[1]);
+    int nParticles = atoi(argv[2]);
+
+    omp_set_num_threads(nThreads);
+
     sf::RenderWindow window(sf::VideoMode(800, 800), "SFML works!");
     window.setFramerateLimit(60);
     const float dt = 1.0f / static_cast<float>(60);
@@ -105,6 +109,12 @@ int main()
     text.setFillColor(sf::Color::White);
     text.setPosition(150.f, 0.f);
 
+    sf::Text text2;
+    text2.setFont(font);
+    text2.setCharacterSize(16);
+    text2.setFillColor(sf::Color::White);
+    text2.setPosition(150.f, 23.f);
+
     sf::Clock clock; //start clock
 
     while (window.isOpen())
@@ -117,7 +127,7 @@ int main()
 			}
                 
         }
-        if (counter % 15 == 0 && particles.size() < 100)
+        if (counter % 15 == 0 && particles.size() < nParticles)
         {
             Body* newBody = new Body();
             if (colorCounter == 0) newBody->shape.setFillColor(sf::Color(255, 0, 0, 255));
@@ -128,7 +138,7 @@ int main()
             particles.push_back(newBody);
         }
 
-        updatePhysicsSubtick(dt, 8);
+        updatePhysicsSubtick(dt, 16);
 
         fps.update();
         std::ostringstream ss;
@@ -146,6 +156,8 @@ int main()
         sf::Time elapsed = clock.getElapsedTime();
         text.setString("Elapsed time: " + std::to_string(elapsed.asSeconds()) + "    Number of Particles: " + std::to_string(particles.size()));
         window.draw(text);
+        text2.setString("nThreads: " + std::to_string(nThreads));
+        window.draw(text2);
 
         window.display();
         if (counter < 60) counter++;
@@ -181,7 +193,6 @@ void solveCollision(Body* particle1, Body* particle2)
     
     const float dist = sqrt(dist2);
     const float delta = response_coef * 0.5f * ((particle1->shape.getRadius()+particle2->shape.getRadius()) - dist);
-    //const float delta = dist / 4.0f;
     const sf::Vector2f col_vec = (o2_o1 / dist) * delta;
     sf::Vector2f newP1Pos = particle1->shape.getPosition() + col_vec;
     particle1->shape.setPosition(newP1Pos);
@@ -216,16 +227,12 @@ void updatePhysics(float dt)
     const float margin = 2.0f;
     int i;
 
-	// fillCells();
-	// find_collisions_grid();
     findCollisions();
 
     #pragma omp parallel for
     for (i =0; i < particles.size(); i++)
     {
 		auto particle = particles.at(i);
-		
-        //findCollisions();
         
         if (particle->pos.x > 800 - margin - particle->shape.getRadius()) {
             particle->pos.x = 800 - margin - particle->shape.getRadius();
