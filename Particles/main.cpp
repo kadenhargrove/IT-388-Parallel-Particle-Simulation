@@ -1,5 +1,5 @@
 /* TO COMPILE:
-	g++ -fopenmp -c main.cpp -I../lib/SFML-2.5.1/include
+	g++ -fopenmp -g -c main.cpp -I../lib/SFML-2.5.1/include
 	g++ main.o -fopenmp -o app -L../lib/SFML-2.5.1/lib -lsfml-graphics -lsfml-window -lsfml-system
    TO RUN:
 	export LD_LIBRARY_PATH=../lib/SFML-2.5.1/lib && ./app
@@ -21,6 +21,7 @@ struct Body
     sf::Vector2f acc; // no acceleration at first
     float mass = 1.0f; // 1kg
     float drag = 1.0f; // rho*C*Area � simplified drag for this example
+	float radius = 10.f;
     sf::CircleShape shape;
 
     Body() {
@@ -28,8 +29,8 @@ struct Body
         this->vel = sf::Vector2f(50.0f, 0.0f);
         this->acc = sf::Vector2f(0.0f, 0.0f);
         this->shape = sf::CircleShape(10.f);
-        this->shape.setOrigin(this->shape.getRadius(), this->shape.getRadius());
-        this->shape.setPosition(this->pos.x, this->pos.y);
+        this->shape.setOrigin(this->radius, this->radius);
+        this->shape.setPosition(this->pos);
     }
 
     /**
@@ -40,27 +41,16 @@ struct Body
     {
         sf::Vector2f new_pos = this->pos + this->vel * dt + this->acc * (dt * dt * 0.5f);
         sf::Vector2f new_acc = apply_forces(); // only needed if acceleration is not constant
-        //sf::Vector3f new_acc = sf::Vector3f(0.0f, 9.81f, 0.0f);
         sf::Vector2f new_vel = this->vel + (this->acc + new_acc) * (dt * 0.5f);
         this->pos = new_pos;
         this->vel = new_vel;
         this->acc = new_acc;
-        this->shape.setPosition(this->pos.x, this->pos.y);
+        this->shape.setPosition(this->pos);
     }
 
     void setPosition(sf::Vector2f vec) 
     {
         this->pos = vec;
-        this->shape.setPosition(this->pos.x, this->pos.y);
-    }
-
-    void updatePositionByShape()
-    {
-        this->pos = this->shape.getPosition();
-    }
-
-    void updatePositionByBody()
-    {
         this->shape.setPosition(this->pos);
     }
 
@@ -74,30 +64,30 @@ struct Body
 };
 
 struct Cell{
-	 static const size_t cellCapacity = 4;
-	 static const size_t maxCellIndex = cellCapacity-1;
-	std::vector<size_t> *cellParticles;
-	size_t xPos;
-	size_t yPos;
+	static const unsigned int cellCapacity = 4;
+	static const unsigned int maxCellIndex = cellCapacity-1;
+	std::vector<unsigned int> *cellParticles;
+	int xPos;
+	int yPos;
 	int cellSize;
 	/*sf::FloatRect* rect;*/
     /*size_t particleCount = 0;
     size_t* cellParticles;*/
 
-	Cell(size_t xPos, size_t yPos, int size){
+	Cell(int xPos, int yPos, int size){
 		this->xPos = xPos;
 		this->yPos = yPos;
 		this->cellSize = size;
         //this->cellParticles = new size_t[cellCapacity];
 		//this->rect = new sf::FloatRect(sf::Vector2f(xPos,yPos),sf::Vector2f(size,size));
-		this->cellParticles = new std::vector<size_t>();
+		this->cellParticles = new std::vector<unsigned int>();
 	}
 
 	/*~Cell(){
 		delete this->rect;
 	}*/
 
-	void addParticle(size_t index){
+	void addParticle(unsigned int index){
 		 /*this->particleCount += particleCount < maxCellIndex;
          this->cellParticles[particleCount] = index;*/
 		this->cellParticles->push_back(index);
@@ -109,36 +99,34 @@ struct Cell{
 	}
 };
 
-static const size_t screenX = 800;
-static const size_t screenY = 800;
-static const size_t cellSize = 40;
+static const int screenX = 800;
+static const int screenY = 800;
+static const int cellSize = 40;
 std::vector<std::vector<Cell*>> cells(screenX/cellSize, std::vector<Cell*>(screenY/cellSize));
 std::vector<Body*> particles;
+
 void findCollisions();
 void updatePhysics(float dt);
 void updatePhysicsSubtick(float dt, int subTicks);
 void initializeCells();
 void fillCells();
-Cell* getCell(float xPos, float yPos);
+Cell* getCell(int xPos, int yPos);
 std::vector<Cell*> getSurroundingCells(Cell* centerCell);
 void findCollisionsInCell(Cell* cell);
 
 int main()
 {
+	omp_set_num_threads(2);
+
     sf::RenderWindow window(sf::VideoMode(800, 800), "SFML works!");
     window.setFramerateLimit(60);
     const float dt = 1.0f / static_cast<float>(60);
-    /*sf::CircleShape shape(10.f);
-    shape.setFillColor(sf::Color::Green);*/
+
     particles.push_back(new Body());
-	std::cout << particles.at(0)->shape.getRadius();
+	std::cout << particles.at(0)->radius;
+
 	initializeCells();
     fillCells();
-    /*particles.push_back(new Body());
-    particles.at(1)->setPosition(400.0f, 0.0f);
-    particles.at(1)->vel.x = -40.0f;
-    particles.at(1)->shape.setFillColor(sf::Color(0,255,0,255));*/
-    //particle1.setPosition(400.0f,400.0f);
 
     FPS fps;
     unsigned int counter = 0;
@@ -187,53 +175,36 @@ int main()
     return 0;
 }
 
-float distance(int x1, int y1, int x2, int y2)
-{
-    // Calculating distance
-    return (float)sqrt(pow(x2 - x1, 2) + pow(y2 - y1, 2) * 1.0);
-}
-
 bool collide(Body* particle1, Body* particle2)
 {
-    if((float)distance(particle1->pos.x, particle1->pos.y, particle2->pos.x, particle2->pos.y) < (particle1->shape.getRadius() + particle2->shape.getRadius()))
+	const sf::Vector2f o2_o1 = particle1->pos - particle2->pos;
+    const float dist2 = o2_o1.x * o2_o1.x + o2_o1.y * o2_o1.y;
+    const float dist = sqrt(dist2);
+    if(dist < (particle1->radius + particle2->radius))
         return true;
     else
         return false;
 }
 
-//void solveCollision(Body* particle1, Body* particle2)
-//{
-//    float overlap = (particle1->shape.getRadius() + particle2->shape.getRadius()) - (float)distance(particle1->pos.x, particle1->pos.y, particle2->pos.x, particle2->pos.y);
-//    sf::Vector2f vec = particle1->shape.getPosition() - particle2->shape.getPosition(); //particle 2 is start, particle 1 is terminal direction is toward particle 1
-//    vec /= overlap;
-//    vec *= overlap/2;
-//    particle2->shape.move(-vec);
-//    particle2->updatePositionByShape();
-//    particle1->shape.move(vec);
-//    particle1->updatePositionByShape();
-//}
-
 void solveCollision(Body* particle1, Body* particle2)
 {
     constexpr float response_coef = 1.0f;
-    const sf::Vector2f o2_o1 = particle1->shape.getPosition() - particle2->shape.getPosition();
+    const sf::Vector2f o2_o1 = particle1->pos - particle2->pos;
     const float dist2 = o2_o1.x * o2_o1.x + o2_o1.y * o2_o1.y;
     
     const float dist = sqrt(dist2);
-    const float delta = response_coef * 0.5f * ((particle1->shape.getRadius()+particle2->shape.getRadius()) - dist);
+    const float delta = response_coef * 0.5f * ((particle1->radius+particle2->radius) - dist);
     //const float delta = dist / 4.0f;
     const sf::Vector2f col_vec = (o2_o1 / dist) * delta;
-    sf::Vector2f newP1Pos = particle1->shape.getPosition() + col_vec;
-    particle1->shape.setPosition(newP1Pos);
-    particle1->updatePositionByShape();
-    sf::Vector2f newP2Pos = particle2->shape.getPosition() - col_vec;
-    particle2->shape.setPosition(newP2Pos);
-    particle2->updatePositionByShape();
+    sf::Vector2f newP1Pos = particle1->pos + col_vec;
+    particle1->setPosition(newP1Pos);
+    sf::Vector2f newP2Pos = particle2->pos - col_vec;
+    particle2->setPosition(newP2Pos);
 }
 
 void findCollisions() 
 {
-	int i;
+	unsigned int i;
 	#pragma omp parallel for
     for (i =0; i < particles.size(); i++)
     {
@@ -253,19 +224,19 @@ void findCollisions()
 
 void findCollisionsInCell(Cell* cell) 
 {
-	int i, j;
+	unsigned int i, j;
     //#pragma omp parallel for private(j)
     auto cellParticles = *cell->cellParticles;
     auto cellParticlesSize = cellParticles.size();
     for (i = 0; i < cellParticlesSize; i++) {
         //std::cout << " Particle: " << cell->cellParticles->at(i);
-        auto particle1 = particles.at(cellParticles.at(i));
+        Body* particle1 = particles.at(cellParticles.at(i));
         for (j = 0; j < cellParticlesSize; j++) {
             if (i != j) {
-                auto particle2 = particles.at(cellParticles.at(j));
+                Body* particle2 = particles.at(cellParticles.at(j));
                 if (collide(particle1, particle2))
                 {
-                    //solveCollision(particle1, particle2);
+                    solveCollision(particle1, particle2);
                 }
             }
         }
@@ -278,10 +249,10 @@ void check_cells_collisions(Cell* cell_1, Cell* cell_2)
      auto cell1ParticlesSize = cell1Particles.size();
      auto cell2Particles = *cell_2->cellParticles;
      auto cell2ParticlesSize = cell2Particles.size();
-     // #pragma omp parallel for
-     for (int i = 0; i < cell1ParticlesSize;  i++)
+    //  #pragma omp parallel for 
+     for (unsigned int i = 0; i < cell1ParticlesSize;  i++)
      {
-         for (int j = 0; j < cell2ParticlesSize; j++)
+         for (unsigned int j = 0; j < cell2ParticlesSize; j++)
          {
              auto particle1 = particles.at(cell1Particles[i]);
              auto particle2 = particles.at(cell2Particles[j]);
@@ -299,7 +270,7 @@ void check_cells_collisions(Cell* cell_1, Cell* cell_2)
 
 void find_collisions_grid()
 {   
-	int i, j;
+	unsigned int i, j;
     //loop through rows of grid (skip top and bottom rows)
     // #pragma omp parallel for private(j)
     for (i = 1; i < cells.size() - 1; i++)
@@ -308,7 +279,8 @@ void find_collisions_grid()
         for (j = 1; j < cells.at(i).size() - 1; j++)
         {
             Cell* current_cell = cells.at(i).at(j);
-            //check_cells_collisions(current_cell, current_cell);
+            // check_cells_collisions(current_cell, current_cell);
+			// findCollisionsInCell(current_cell);
             //Iterate on all surrounding cells, including current one
             for (int dx = -1; dx <= 1; dx++)
             {
@@ -325,7 +297,7 @@ void find_collisions_grid()
 void updatePhysics(float dt)
 {
     const float margin = 2.0f;
-    int i;
+    unsigned int i;
 
 	fillCells();
 	find_collisions_grid();
@@ -333,28 +305,28 @@ void updatePhysics(float dt)
     #pragma omp parallel for
     for (i =0; i < particles.size(); i++)
     {
-		auto particle = particles.at(i);
+		Body* particle = particles.at(i);
 		
-        //findCollisions();
+        // findCollisions();
         
-        if (particle->pos.x > screenX - margin - particle->shape.getRadius()) {
-            particle->pos.x = screenX - margin - particle->shape.getRadius();
-            particle->updatePositionByBody();
+        if (particle->pos.x > screenX - margin - particle->radius) {
+            particle->pos.x = screenX - margin - particle->radius;
+            particle->setPosition(particle->pos); //remove for expanseVer
 			particle->vel = sf::Vector2f(-particle->vel.x,particle->vel.y);
         }
-        else if (particle->pos.x < margin + particle->shape.getRadius()) {
-            particle->pos.x = margin + particle->shape.getRadius();
-            particle->updatePositionByBody();
+        else if (particle->pos.x < margin + particle->radius) {
+            particle->pos.x = margin + particle->radius;
+            particle->setPosition(particle->pos); //remove for expanseVer
 			particle->vel = sf::Vector2f(-particle->vel.x,particle->vel.y);
         }
-        if (particle->pos.y > screenY - margin - particle->shape.getRadius()) {
-            particle->pos.y = screenY - margin - particle->shape.getRadius();
-            particle->updatePositionByBody();
+        if (particle->pos.y > screenY - margin - particle->radius) {
+            particle->pos.y = screenY - margin - particle->radius;
+            particle->setPosition(particle->pos); //remove for expanseVer
 			particle->vel = sf::Vector2f(particle->vel.x,-particle->vel.y);
         }
-        else if (particle->pos.y < margin + particle->shape.getRadius()) {
-            particle->pos.y = margin + particle->shape.getRadius();
-            particle->updatePositionByBody();
+        else if (particle->pos.y < margin + particle->radius) {
+            particle->pos.y = margin + particle->radius;
+            particle->setPosition(particle->pos); //remove for expanseVer
 			particle->vel = sf::Vector2f(particle->vel.x,-particle->vel.y);
         }
 		particle->update(dt);
@@ -371,44 +343,44 @@ void updatePhysicsSubtick(float dt, int subTicks)
 }
 
 void initializeCells(){
-	int i, j;
+	unsigned int i, j;
 	#pragma omp parallel for private(j)
 	for(i = 0; i < cells.size(); i++)
 	{
-		size_t curX = screenX/cellSize * i;
+		int curX = screenX/cellSize * i;
 		for(j = 0; j < cells.at(i).size(); j++)
 		{
-			size_t curY = screenY/cellSize * j;
+			int curY = screenY/cellSize * j;
 			cells.at(i).at(j) = new Cell(curX, curY, cellSize);
 		}
 	}
 }
 
 Cell* getCell(float xPos, float yPos){
-	int idx = std::floor(xPos/cellSize);
-	int idy = std::floor(yPos/cellSize);
+	unsigned int idx = static_cast<unsigned int>(xPos/cellSize);
+	unsigned int idy = static_cast<unsigned int>(yPos/cellSize);
 	return cells.at(idx).at(idy);
 }
 
-std::vector<Cell*> getSurroundingCells(Cell* centerCell){
-	auto posx = centerCell->xPos;
-	auto posy = centerCell->yPos;
-	int idx = std::floor(posx/cellSize);
-	int idy = std::floor(posy/cellSize);
-	std::vector<Cell*> result;
-	if(idx - 1 >=0 && idy -1 >=0) result.push_back(cells.at(idx - 1).at(idy -1)); //top left
-	if(idy -1 >=0) result.push_back(cells.at(idx).at(idy -1)); //top center
-	if(idx +1<=cells.size() && idy -1 >=0) result.push_back(cells.at(idx+1).at(idy -1)); //top right
-	if(idx-1 >=0) result.push_back(cells.at(idx-1).at(idy)); //left
-	if(idx+1 <=cells.size()) result.push_back(cells.at(idx+1).at(idy)); //right
-	if(idx - 1 >=0 && idy +1 <=cells.at(idx - 1).size()) result.push_back(cells.at(idx - 1).at(idy +1)); //top left
-	if(idy +1 <=cells.at(idx).size()) result.push_back(cells.at(idx).at(idy +1)); //top center
-	if(idx +1<=cells.size() && idy +1 <=cells.at(idx + 1).size()) result.push_back(cells.at(idx+1).at(idy +1)); //top right
-	return result;
-}
+// std::vector<Cell*> getSurroundingCells(Cell* centerCell){
+// 	auto posx = centerCell->xPos;
+// 	auto posy = centerCell->yPos;
+// 	int idx = std::floor(posx/cellSize);
+// 	int idy = std::floor(posy/cellSize);
+// 	std::vector<Cell*> result;
+// 	if(idx - 1 >=0 && idy -1 >=0) result.push_back(cells.at(idx - 1).at(idy -1)); //top left
+// 	if(idy -1 >=0) result.push_back(cells.at(idx).at(idy -1)); //top center
+// 	if(idx +1<=cells.size() && idy -1 >=0) result.push_back(cells.at(idx+1).at(idy -1)); //top right
+// 	if(idx-1 >=0) result.push_back(cells.at(idx-1).at(idy)); //left
+// 	if(idx+1 <=cells.size()) result.push_back(cells.at(idx+1).at(idy)); //right
+// 	if(idx - 1 >=0 && idy +1 <=cells.at(idx - 1).size()) result.push_back(cells.at(idx - 1).at(idy +1)); //top left
+// 	if(idy +1 <=cells.at(idx).size()) result.push_back(cells.at(idx).at(idy +1)); //top center
+// 	if(idx +1<=cells.size() && idy +1 <=cells.at(idx + 1).size()) result.push_back(cells.at(idx+1).at(idy +1)); //top right
+// 	return result;
+// }
 
 void clearCells() {
-    int i, j;
+    unsigned int i, j;
     #pragma omp parallel for private(j)
     for (i = 0; i < cells.size(); i++)
     {
@@ -420,13 +392,13 @@ void clearCells() {
 }
 
 void fillCells(){
-	int i, j;
+	unsigned int i;
     clearCells();
     #pragma omp parallel for
     for (i =0; i < particles.size(); i++)
 	{
-		auto particle = particles.at(i);
-		auto curCell = getCell(particle->pos.x, particle->pos.y);
+		Body* particle = particles.at(i);
+		Cell* curCell = getCell(particle->pos.x, particle->pos.y);
 		curCell->addParticle(i);
         //auto particlePos = particle->shape.getGlobalBounds();
 		/*auto surroundingCells = getSurroundingCells(curCell);
