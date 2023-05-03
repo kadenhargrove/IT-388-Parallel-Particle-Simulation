@@ -120,16 +120,25 @@ Cell* getCell(float xPos, float yPos);
 void clearCells();
 void fillCells();
 
-int main()
+int main(int argc, char **argv)
 {
-	omp_set_num_threads(2);
+	if (argc != 3)
+    {
+        std::cout << "Usage: export LD_LIBRARY_PATH=../lib/SFML-2.5.1/lib && ./app nThreads nParticles" << std::endl;
+        exit(0);
+    }
+    
+    int nThreads = atoi(argv[1]);
+    int nParticles = atoi(argv[2]);
+
+    omp_set_num_threads(nThreads);
 
     sf::RenderWindow window(sf::VideoMode(800, 800), "SFML works!");
     window.setFramerateLimit(60);
     const float dt = 1.0f / static_cast<float>(60);
 
     particles.push_back(new Body());
-	std::cout << particles.at(0)->radius;
+	//std::cout << particles.at(0)->radius << std::endl;
 
 	initializeCells();
     fillCells();
@@ -137,6 +146,27 @@ int main()
     FPS fps;
     unsigned int counter = 0;
     int colorCounter = 0;
+
+    sf::Font font; //set font
+    if(!font.loadFromFile("/usr/share/fonts/truetype/ubuntu/UbuntuMono-BI.ttf"))
+    {
+        std::cout << "Error loading font!" << std::endl;
+    }
+
+    sf::Text text;
+    text.setFont(font);
+    text.setCharacterSize(20);
+    text.setFillColor(sf::Color::White);
+    text.setPosition(150.f, 0.f);
+
+    sf::Text text2;
+    text2.setFont(font);
+    text2.setCharacterSize(16);
+    text2.setFillColor(sf::Color::White);
+    text2.setPosition(150.f, 23.f);
+
+    sf::Clock clock; //start clock
+
     while (window.isOpen())
     {
         sf::Event event;
@@ -147,7 +177,7 @@ int main()
 			}
                 
         }
-        if (counter % 15 == 0 && particles.size() < 35)
+        if (counter % 15 == 0 && particles.size() < nParticles)
         {
             Body* newBody = new Body();
             if (colorCounter == 0) newBody->shape.setFillColor(sf::Color(255, 0, 0, 255));
@@ -172,10 +202,21 @@ int main()
         {
             window.draw(particle->shape);
         }
+
+        //display time and num particles
+        sf::Time elapsed = clock.getElapsedTime();
+        text.setString("Elapsed time: " + std::to_string(elapsed.asSeconds()) + "    Number of Particles: " + std::to_string(particles.size()));
+        window.draw(text);
+        text2.setString("nThreads: " + std::to_string(nThreads));
+        window.draw(text2);
+
         window.display();
         if (counter < 60) counter++;
         else counter = 0;
     }
+
+    sf::Time elapsed = clock.getElapsedTime();
+    std::cout << "Elapsed time: " << elapsed.asSeconds() << std::endl;
 
     particles.clear();
     return 0;
