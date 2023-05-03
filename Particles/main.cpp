@@ -148,7 +148,7 @@ int main(int argc, char **argv)
     int colorCounter = 0;
 
     sf::Font font; //set font
-    if(!font.loadFromFile("/usr/share/fonts/truetype/ubuntu/UbuntuMono-BI.ttf"))
+    if(!font.loadFromFile("./UbuntuMono-BI.ttf"))
     {
         std::cout << "Error loading font!" << std::endl;
     }
