@@ -2,7 +2,7 @@
 	g++ -fopenmp -g -c main.cpp -I../lib/SFML-2.5.1/include
 	g++ main.o -fopenmp -o app -L../lib/SFML-2.5.1/lib -lsfml-graphics -lsfml-window -lsfml-system
    TO RUN:
-	export LD_LIBRARY_PATH=../lib/SFML-2.5.1/lib && ./app nThreads nParticles
+	export LD_LIBRARY_PATH=../lib/SFML-2.5.1/lib && ./app
 
 	DEBUG: g++ -fopenmp -g -Wall -Wextra -pedantic -c main.cpp -I../lib/SFML-2.5.1/include
 */
@@ -160,15 +160,9 @@ int main(int argc, char **argv)
     text2.setPosition(150.f, 23.f);
 
     sf::Clock clock; //start clock
-<<<<<<< HEAD
 	sf::Time elapsed;
-=======
-    sf::Clock endClock;
-    bool continueLoop = true;
-    const float additionalTime = 10.0; //time to run after last particle is made
->>>>>>> b1281d93b08f9e005d535018be1aa7e888bfacdf
 
-    while (window.isOpen() && continueLoop)
+    while (window.isOpen())
     {        
         sf::Event event;
         while (window.pollEvent(event))
@@ -210,11 +204,6 @@ int main(int argc, char **argv)
 				} 
 			}
             particles.push_back(newBody);
-
-            if (particles.size() == nParticles)
-            {
-                endClock.restart();
-            }
         }
 
 		clock.restart();
@@ -245,23 +234,15 @@ int main(int argc, char **argv)
 
         window.display();
 
-        //give particles time to settle after reaching nParticles
-        sf::Time endTimer = endClock.getElapsedTime();
-        if(particles.size() == nParticles && (endTimer.asSeconds() >= additionalTime))
+        if(particles.size() == nParticles)
         {
             // std::cout << "FPS: " << fps.getFPS() << std::endl;
             window.close();
         }
     }
 
-<<<<<<< HEAD
     std::cout << "Total Elapsed time: " << elapsed.asSeconds() << " sec";
     std::cout << " Avg Time/physics update: " << (elapsed.asMilliseconds() / (double)counter) << " ms" << std::endl;
-=======
-    sf::Time elapsed = clock.getElapsedTime();
-    std::cout << "Elapsed time: " << elapsed.asSeconds() << " sec" << std::endl;
-    std::cout << "Average ms/particle: " << (elapsed.asSeconds() / nParticles) * 1000 << " ms" << std::endl;
->>>>>>> b1281d93b08f9e005d535018be1aa7e888bfacdf
 
     particles.clear();
     return 0;
