@@ -15,6 +15,7 @@
 #include <cmath>
 #include <omp.h>
 #include <iostream>
+#include <unistd.h>
 
 struct Body
 {
@@ -23,7 +24,7 @@ struct Body
     sf::Vector2f acc;
     float mass = 1.0f; // 1kg
     float drag = 1.0f; // rho*C*Area � simplified drag for this example
-	float radius = 5.0f; //size of each circle
+	float radius = 10.0f; //size of each circle
     sf::CircleShape shape;
 
     Body() {
@@ -157,7 +158,7 @@ int main(int argc, char **argv)
     sf::Clock clock; //start clock
 
     while (window.isOpen())
-    {
+    {        
         sf::Event event;
         while (window.pollEvent(event))
         {
@@ -166,7 +167,7 @@ int main(int argc, char **argv)
 			}
                 
         }
-        if (counter % 10 == 0 && particles.size() < nParticles)
+        if (particles.size() < nParticles)
         {
             Body* newBody = new Body();
             if (colorCounter == 0) newBody->shape.setFillColor(sf::Color(255, 0, rgbCounter, 255));
@@ -226,10 +227,17 @@ int main(int argc, char **argv)
         window.display();
         if (counter < 60) counter++;
         else counter = 0;
+
+        if(particles.size() == nParticles)
+        {
+            std::cout << "FPS: " << fps.getFPS() << std::endl;
+            window.close();
+        }
     }
 
     sf::Time elapsed = clock.getElapsedTime();
-    std::cout << "Elapsed time: " << elapsed.asSeconds() << std::endl;
+    std::cout << "Elapsed time: " << elapsed.asSeconds() << " sec" << std::endl;
+    std::cout << "Time/particle: " << (elapsed.asSeconds() / nParticles) * 1000 << " ms" << std::endl;
 
     particles.clear();
     return 0;
@@ -451,7 +459,8 @@ void clearCells() {
 void fillCells(){
 	unsigned int i;
     clearCells();
-    #pragma omp parallel for
+    //seems consistently slower with parallel for
+    //#pragma omp parallel for 
     for (i =0; i < particles.size(); i++)
 	{
 		Body* particle = particles.at(i);
