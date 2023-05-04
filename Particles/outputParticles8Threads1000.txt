@@ -1,0 +1,3 @@
+Total Elapsed time: 460.833 sec Avg Time/physics update: 92.2402 ms Cell size: 100 Particle count: 1000
+Total Elapsed time: 165.602 sec Avg Time/physics update: 33.1467 ms Cell size: 50 Particle count: 1000
+Total Elapsed time: 85.6067 sec Avg Time/physics update: 17.1349 ms Cell size: 25 Particle count: 1000

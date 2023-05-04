@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name="app"
-#SBATCH --output="outputParticles2Threads500-800.%j.%N.out"
+#SBATCH --output="outputParticles24Threads2000TEST.%j.%N.out"
 #SBATCH --partition=compute
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=24
@@ -11,4 +11,4 @@
 module load intel
 module load mvapich2
 
-export LD_LIBRARY_PATH=../lib/SFML-2.5.1/lib && ./app 2 500 800
+export LD_LIBRARY_PATH=../lib/SFML-2.5.1/lib && ./app 24 2000 10
