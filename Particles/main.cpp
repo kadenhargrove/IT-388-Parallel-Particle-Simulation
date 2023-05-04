@@ -156,8 +156,11 @@ int main(int argc, char **argv)
     text2.setPosition(150.f, 23.f);
 
     sf::Clock clock; //start clock
+    sf::Clock endClock;
+    bool continueLoop = true;
+    const float additionalTime = 10.0; //time to run after last particle is made
 
-    while (window.isOpen())
+    while (window.isOpen() && continueLoop)
     {        
         sf::Event event;
         while (window.pollEvent(event))
@@ -200,6 +203,11 @@ int main(int argc, char **argv)
 			}
 			
             particles.push_back(newBody);
+
+            if (particles.size() == nParticles)
+            {
+                endClock.restart();
+            }
         }
 
         updatePhysicsSubtick(dt, 8);
@@ -228,7 +236,9 @@ int main(int argc, char **argv)
         if (counter < 60) counter++;
         else counter = 0;
 
-        if(particles.size() == nParticles)
+        //give particles time to settle after reaching nParticles
+        sf::Time endTimer = endClock.getElapsedTime();
+        if(particles.size() == nParticles && (endTimer.asSeconds() >= additionalTime))
         {
             std::cout << "FPS: " << fps.getFPS() << std::endl;
             window.close();
@@ -237,7 +247,7 @@ int main(int argc, char **argv)
 
     sf::Time elapsed = clock.getElapsedTime();
     std::cout << "Elapsed time: " << elapsed.asSeconds() << " sec" << std::endl;
-    std::cout << "Time/particle: " << (elapsed.asSeconds() / nParticles) * 1000 << " ms" << std::endl;
+    std::cout << "Average ms/particle: " << (elapsed.asSeconds() / nParticles) * 1000 << " ms" << std::endl;
 
     particles.clear();
     return 0;
