@@ -110,16 +110,18 @@ Cell* getCell(sf::Vector2f);
 void clearCells();
 void fillCells();
 
+int nThreads;
+
 int main(int argc, char **argv)
 {
-	if (argc != 6)
+	if (argc != 5)
     {
         std::cout << "Usage: export LD_LIBRARY_PATH=../lib/SFML-2.5.1/lib && ./app nThreads nParticles cellSize drawWindowFlag" << std::endl;
 		std::cout << "cellSize must be divisible by 800 and >= 10, drawWindowFlag can be 0 or 1" << std::endl;
         exit(0);
     }
     
-    int nThreads = atoi(argv[1]);
+    nThreads = atoi(argv[1]);
     unsigned int nParticles = static_cast<unsigned int>(atoi(argv[2]));
 	cellSize = atoi(argv[3]);
 	bool drawWindow = atoi(argv[4]);
@@ -342,15 +344,19 @@ void updatePhysics(float dt)
     const float margin = 2.0f;
     unsigned int i;
 
-	fillCells();
-	find_collisions_grid();
+	if(nThreads > 1){
+		fillCells();
+		find_collisions_grid();
+	}
 
     #pragma omp parallel for
     for (i =0; i < particles.size(); i++)
     {
 		Body* particle = particles.at(i);
 		
-        // findCollisions();
+        if(nThreads == 1){
+			findCollisions();
+		}
         
         if (particle->pos.x > screenX - margin - particle->radius) {
             particle->pos.x = screenX - margin - particle->radius;
