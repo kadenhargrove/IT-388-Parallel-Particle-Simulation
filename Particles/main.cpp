@@ -133,8 +133,8 @@ int main(int argc, char **argv)
 
     FPS fps;
     unsigned int counter = 0;
-    unsigned int colorCounter = 0;
-	unsigned int rgbCounter = 0;
+    int colorCounter = 0;
+	int rgbCounter = 0;
 	bool colorUp = true;
 
     sf::Font font; //set font
@@ -181,7 +181,7 @@ int main(int argc, char **argv)
             if (colorCounter == 5) newBody->shape.setFillColor(sf::Color(255, rgbCounter, 0, 255));
             if(colorUp)
 			{
-				if(rgbCounter<254) rgbCounter+=25;
+				if(rgbCounter<=254) rgbCounter+=25;
 				else 
 				{
 					rgbCounter = 255;
@@ -192,7 +192,7 @@ int main(int argc, char **argv)
 			}
 			else
 			{
-				if(rgbCounter>1) rgbCounter-=25;
+				if(rgbCounter>=0) rgbCounter-=25;
 				else
 				{
 					rgbCounter = 0;
@@ -201,7 +201,6 @@ int main(int argc, char **argv)
 					colorUp = true;
 				} 
 			}
-			
             particles.push_back(newBody);
 
             if (particles.size() == nParticles)
@@ -252,46 +251,6 @@ int main(int argc, char **argv)
     particles.clear();
     return 0;
 }
-
-// void colorLoop(){ //just for gradient notes
-// 	for(int colorStep=0; colorStep <= 255; colorStep++) 
-// 	{
-// 		int r = 255;
-// 		int g = 0;
-// 		int b = colorStep;
-//   	}
-//   //into blue
-//   	for(int colorStep=255; colorStep >= 0; colorStep--) 
-// 	{
-//     	int r = colorStep;
-//     	int g = 0;
-//     	int b = 255;
-//   	}
-//   //start from blue
-//   for(int colorStep=0; colorStep <= 255; colorStep++) {
-//     int r = 0;
-//     int g = colorStep;
-//     int b = 255;
-//   }
-//   //into green
-//   for(int colorStep=255; colorStep >= 0; colorStep--) {
-//     int r = 0;
-//     int g = 255;
-//     int b = colorStep;
-//   }
-//   //start from green
-//   for(int colorStep=0; colorStep <= 255; colorStep++) {
-//     int r = colorStep;
-//     int g = 255;
-//     int b = 0;
-//     }
-//   //into yellow
-//   for(int colorStep=255; colorStep >= 0; colorStep--) {
-//     int r = 255;
-//     int g = colorStep;
-//     int b = 0;
-//   }
-// }
 
 bool collide(Body* particle1, Body* particle2)
 {
