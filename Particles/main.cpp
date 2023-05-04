@@ -234,46 +234,6 @@ int main(int argc, char **argv)
     return 0;
 }
 
-// void colorLoop(){ //just for gradient notes
-// 	for(int colorStep=0; colorStep <= 255; colorStep++) 
-// 	{
-// 		int r = 255;
-// 		int g = 0;
-// 		int b = colorStep;
-//   	}
-//   //into blue
-//   	for(int colorStep=255; colorStep >= 0; colorStep--) 
-// 	{
-//     	int r = colorStep;
-//     	int g = 0;
-//     	int b = 255;
-//   	}
-//   //start from blue
-//   for(int colorStep=0; colorStep <= 255; colorStep++) {
-//     int r = 0;
-//     int g = colorStep;
-//     int b = 255;
-//   }
-//   //into green
-//   for(int colorStep=255; colorStep >= 0; colorStep--) {
-//     int r = 0;
-//     int g = 255;
-//     int b = colorStep;
-//   }
-//   //start from green
-//   for(int colorStep=0; colorStep <= 255; colorStep++) {
-//     int r = colorStep;
-//     int g = 255;
-//     int b = 0;
-//     }
-//   //into yellow
-//   for(int colorStep=255; colorStep >= 0; colorStep--) {
-//     int r = 255;
-//     int g = colorStep;
-//     int b = 0;
-//   }
-// }
-
 bool collide(Body* particle1, Body* particle2)
 {
 	const sf::Vector2f o2_o1 = particle1->pos - particle2->pos;
