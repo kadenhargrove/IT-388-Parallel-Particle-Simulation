@@ -198,7 +198,7 @@ int main(int argc, char **argv)
         //display time and num particles
         // sf::Time elapsed = clock.getElapsedTime();
 
-        if(particles.size() == nParticles)
+        if(particles.size() >= nParticles)
         {
             // std::cout << "FPS: " << fps.getFPS() << std::endl;
             running = false;
