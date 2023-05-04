@@ -2,7 +2,7 @@
 	g++ -fopenmp -g -c main.cpp -I../lib/SFML-2.5.1/include
 	g++ main.o -fopenmp -o app -L../lib/SFML-2.5.1/lib -lsfml-graphics -lsfml-window -lsfml-system
    TO RUN:
-	export LD_LIBRARY_PATH=../lib/SFML-2.5.1/lib && ./app
+	export LD_LIBRARY_PATH=../lib/SFML-2.5.1/lib && ./app nThreads nParticles
 
 	DEBUG: g++ -fopenmp -g -Wall -Wextra -pedantic -c main.cpp -I../lib/SFML-2.5.1/include
 */
