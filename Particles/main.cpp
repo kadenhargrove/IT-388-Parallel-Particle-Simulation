@@ -132,8 +132,8 @@ int main(int argc, char **argv)
 
     FPS fps;
     unsigned int counter = 0;
-    unsigned int colorCounter = 0;
-	unsigned int rgbCounter = 0;
+    int colorCounter = 0;
+	int rgbCounter = 0;
 	bool colorUp = true;
 
     sf::Font font; //set font
@@ -177,7 +177,7 @@ int main(int argc, char **argv)
             if (colorCounter == 5) newBody->shape.setFillColor(sf::Color(255, rgbCounter, 0, 255));
             if(colorUp)
 			{
-				if(rgbCounter<254) rgbCounter+=25;
+				if(rgbCounter<=254) rgbCounter+=25;
 				else 
 				{
 					rgbCounter = 255;
@@ -188,7 +188,7 @@ int main(int argc, char **argv)
 			}
 			else
 			{
-				if(rgbCounter>1) rgbCounter-=25;
+				if(rgbCounter>=0) rgbCounter-=25;
 				else
 				{
 					rgbCounter = 0;
@@ -197,7 +197,6 @@ int main(int argc, char **argv)
 					colorUp = true;
 				} 
 			}
-			
             particles.push_back(newBody);
         }
 
