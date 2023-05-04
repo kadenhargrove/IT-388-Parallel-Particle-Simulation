@@ -1,0 +1,2 @@
+Failed to open X11 display; make sure the DISPLAY environment variable is set correctly
+/cm/local/apps/slurm/var/spool/job22106792/slurm_script: line 14: 3282240 Aborted                 (core dumped) ./app 4 200 40 0

@@ -4,7 +4,14 @@
    TO RUN:
 	export LD_LIBRARY_PATH=../lib/SFML-2.5.1/lib && ./app
 
-	DEBUG: g++ -fopenmp -g -Wall -Wextra -pedantic -c main.cpp -I../lib/SFML-2.5.1/include
+   DEBUG: g++ -fopenmp -g -Wall -Wextra -pedantic -c main.cpp -I../lib/SFML-2.5.1/include
+
+   EXPANSE: 
+    module load intel mvapich2
+    icc -qopenmp -g -c main.cpp -I../lib/SFML-2.5.1/include
+    icc main.o -qopenmp -o app -L../lib/SFML-2.5.1/lib -lsfml-graphics -lsfml-window -lsfml-system
+    export LD_LIBRARY_PATH=../lib/SFML-2.5.1/lib && ./app nThreads nParticles cellSize 0
+    MAKE SURE DRAW WINDOW FLAG IS SET TO 0
 */
 
 #include <SFML/Graphics.hpp>
@@ -112,7 +119,7 @@ void fillCells();
 
 int main(int argc, char **argv)
 {
-	if (argc != 6)
+	if (argc != 5)
     {
         std::cout << "Usage: export LD_LIBRARY_PATH=../lib/SFML-2.5.1/lib && ./app nThreads nParticles cellSize drawWindowFlag" << std::endl;
 		std::cout << "cellSize must be divisible by 800 and >= 10, drawWindowFlag can be 0 or 1" << std::endl;

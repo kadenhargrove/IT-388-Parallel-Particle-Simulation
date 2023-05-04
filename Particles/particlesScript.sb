@@ -1,0 +1,14 @@
+#!/bin/bash
+#SBATCH --job-name="mv"
+#SBATCH --output="outputParticles.%j.%N.out"
+#SBATCH --partition=compute
+#SBATCH --nodes=2
+#SBATCH --ntasks-per-node=24
+#SBATCH --mem=8G
+#SBATCH --account=isu102
+#SBATCH --export=ALL
+#SBATCH -t 00:30:00
+module load intel
+module load mvapich2
+
+export LD_LIBRARY_PATH=../lib/SFML-2.5.1/lib && ./app 4 200 40 0

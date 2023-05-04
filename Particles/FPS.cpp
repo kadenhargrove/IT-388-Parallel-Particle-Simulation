@@ -13,7 +13,7 @@ public:
 
 	/// @brief Get the current FPS count.
 	/// @return FPS count.
-	const unsigned int getFPS() const { return mFps; }
+	unsigned int getFPS() const { return mFps; }
 
 private:
 	unsigned int mFrame;
