@@ -10,8 +10,7 @@
     module load intel mvapich2
     icc -qopenmp -g -c main.cpp -I../lib/SFML-2.5.1/include
     icc main.o -qopenmp -o app -L../lib/SFML-2.5.1/lib -lsfml-graphics -lsfml-window -lsfml-system
-    export LD_LIBRARY_PATH=../lib/SFML-2.5.1/lib && ./app nThreads nParticles cellSize 0
-    MAKE SURE DRAW WINDOW FLAG IS SET TO 0
+    export LD_LIBRARY_PATH=../lib/SFML-2.5.1/lib && ./app nThreads nParticles cellSize
 */
 
 #include <SFML/Graphics.hpp>
@@ -117,28 +116,26 @@ Cell* getCell(sf::Vector2f);
 void clearCells();
 void fillCells();
 
+int nThreads;
+
 int main(int argc, char **argv)
 {
-	if (argc != 5)
+	if (argc != 4)
     {
-        std::cout << "Usage: export LD_LIBRARY_PATH=../lib/SFML-2.5.1/lib && ./app nThreads nParticles cellSize drawWindowFlag" << std::endl;
-		std::cout << "cellSize must be divisible by 800 and >= 10, drawWindowFlag can be 0 or 1" << std::endl;
+        std::cout << "Usage: export LD_LIBRARY_PATH=../lib/SFML-2.5.1/lib && ./app nThreads nParticles cellSize" << std::endl;
+		std::cout << "cellSize must be divisible by 800 and >= 10" << std::endl;
         exit(0);
     }
     
-    int nThreads = atoi(argv[1]);
+    nThreads = atoi(argv[1]);
     unsigned int nParticles = static_cast<unsigned int>(atoi(argv[2]));
 	cellSize = atoi(argv[3]);
-	bool drawWindow = atoi(argv[4]);
 
 	cells = std::vector<std::vector<Cell*>>(screenX/cellSize, std::vector<Cell*>(screenY/cellSize));
 
     omp_set_num_threads(nThreads);
 
-    sf::RenderWindow window(sf::VideoMode(800, 800), "SFML works!");
-    window.setFramerateLimit(60);
     const float dt = 1.0f / static_cast<float>(60);
-	window.setVisible(drawWindow);
 
 	initializeCells();
 
@@ -148,37 +145,12 @@ int main(int argc, char **argv)
 	int rgbCounter = 0;
 	bool colorUp = true;
 
-    sf::Font font; //set font
-    if(!font.loadFromFile("./UbuntuMono-BI.ttf"))
-    {
-        std::cout << "Error loading font!" << std::endl;
-    }
-
-    sf::Text text;
-    text.setFont(font);
-    text.setCharacterSize(20);
-    text.setFillColor(sf::Color::White);
-    text.setPosition(150.f, 0.f);
-
-    sf::Text text2;
-    text2.setFont(font);
-    text2.setCharacterSize(16);
-    text2.setFillColor(sf::Color::White);
-    text2.setPosition(150.f, 23.f);
-
     sf::Clock clock; //start clock
 	sf::Time elapsed;
 
-    while (window.isOpen())
+    bool running = true;
+    while (running)
     {        
-        sf::Event event;
-        while (window.pollEvent(event))
-        {
-            if (event.type == sf::Event::Closed){
-				window.close();
-			}
-                
-        }
         if (counter%5 == 0 && particles.size() < nParticles)
         {
             Body* newBody = new Body();
@@ -223,33 +195,20 @@ int main(int argc, char **argv)
         std::ostringstream ss;
         ss << fps.getFPS();
 
-        window.setTitle(ss.str());
-
-        window.clear();
-        for (Body* particle : particles)
-        {
-            window.draw(particle->shape);
-        }
-
         //display time and num particles
         // sf::Time elapsed = clock.getElapsedTime();
-		double avgElapsed = (elapsed.asMilliseconds()/(double)counter);
-        text.setString("Avg ms/update: " + std::to_string(avgElapsed) + "    Number of Particles: " + std::to_string(particles.size()));
-        window.draw(text);
-        text2.setString("nThreads: " + std::to_string(nThreads));
-        window.draw(text2);
-
-        window.display();
 
         if(particles.size() == nParticles)
         {
             // std::cout << "FPS: " << fps.getFPS() << std::endl;
-            window.close();
+            running = false;
         }
     }
 
     std::cout << "Total Elapsed time: " << elapsed.asSeconds() << " sec";
-    std::cout << " Avg Time/physics update: " << (elapsed.asMilliseconds() / (double)counter) << " ms" << std::endl;
+    std::cout << " Avg Time/physics update: " << (elapsed.asMilliseconds() / (double)counter) << " ms";
+    std::cout << " Cell size: " << cellSize;
+    std::cout << " Particle count: " << nParticles << std::endl;
 
     particles.clear();
     return 0;
@@ -349,16 +308,20 @@ void updatePhysics(float dt)
     const float margin = 2.0f;
     unsigned int i;
 
-	fillCells();
-	find_collisions_grid();
+    if(nThreads > 1){
+        fillCells();
+	    find_collisions_grid();
+    }
 
     #pragma omp parallel for
     for (i =0; i < particles.size(); i++)
     {
 		Body* particle = particles.at(i);
 		
-        // findCollisions();
-        
+        if(nThreads == 1){
+            findCollisions();
+        }
+
         if (particle->pos.x > screenX - margin - particle->radius) {
             particle->pos.x = screenX - margin - particle->radius;
             particle->setPosition(particle->pos); //remove for expanseVer

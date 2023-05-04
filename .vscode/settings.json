@@ -45,6 +45,10 @@
 		"stdexcept": "cpp",
 		"streambuf": "cpp",
 		"cinttypes": "cpp",
-		"typeinfo": "cpp"
+		"typeinfo": "cpp",
+		"list": "cpp",
+		"functional": "cpp",
+		"numeric": "cpp",
+		"random": "cpp"
 	}
 }
