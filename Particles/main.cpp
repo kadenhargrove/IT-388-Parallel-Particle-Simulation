@@ -29,7 +29,7 @@ struct Body
 
     Body() {
         this->pos = sf::Vector2f(0.0f, 0.0f);
-        this->vel = sf::Vector2f(75.0f, 0.0f);
+        this->vel = sf::Vector2f(100.0f, 0.0f);
         this->acc = sf::Vector2f(0.0f, 0.0f);
         this->shape = sf::CircleShape(radius);
         this->shape.setOrigin(this->radius, this->radius);
@@ -45,7 +45,9 @@ struct Body
         sf::Vector2f new_pos = this->pos + this->vel * dt + this->acc * (dt * dt * 0.5f);
         sf::Vector2f new_acc = apply_forces(); // only needed if acceleration is not constant
         sf::Vector2f new_vel = this->vel + (this->acc + new_acc) * (dt * 0.5f);
+		#pragma omp critical
         this->pos = new_pos;
+		#pragma omp critical
         this->vel = new_vel;
         this->acc = new_acc;
         this->shape.setPosition(this->pos);
@@ -59,7 +61,7 @@ struct Body
 
     sf::Vector2f apply_forces() const
     {
-        sf::Vector2f grav_acc = sf::Vector2f( 0.0f, 200.0f); //
+        sf::Vector2f grav_acc = sf::Vector2f( 0.0f, 100.0f); //
         sf::Vector2f drag_force = 0.5f * drag * vel; // D = 0.5 * (rho * C * Area * vel^2)
         sf::Vector2f drag_acc = drag_force / mass; // a = F/m
         return grav_acc- drag_acc;
@@ -92,8 +94,8 @@ struct Cell{
 
 static const int screenX = 800;
 static const int screenY = 800;
-static const int cellSize = 20; //should only ever be as small as the diameter of a particle
-std::vector<std::vector<Cell*>> cells(screenX/cellSize, std::vector<Cell*>(screenY/cellSize));
+static int cellSize; //should only ever be as small as the diameter of a particle
+std::vector<std::vector<Cell*>> cells;
 std::vector<Body*> particles;
 
 bool collide(Body* particle1, Body* particle2);
@@ -110,26 +112,28 @@ void fillCells();
 
 int main(int argc, char **argv)
 {
-	if (argc != 3)
+	if (argc != 6)
     {
-        std::cout << "Usage: export LD_LIBRARY_PATH=../lib/SFML-2.5.1/lib && ./app nThreads nParticles" << std::endl;
+        std::cout << "Usage: export LD_LIBRARY_PATH=../lib/SFML-2.5.1/lib && ./app nThreads nParticles nSubticks cellSize drawWindowFlag" << std::endl;
         exit(0);
     }
     
     int nThreads = atoi(argv[1]);
     unsigned int nParticles = static_cast<unsigned int>(atoi(argv[2]));
+	int nSubticks = atoi(argv[3]);
+	cellSize = atoi(argv[4]);
+	bool drawWindow = atoi(argv[5]);
+
+	cells = std::vector<std::vector<Cell*>>(screenX/cellSize, std::vector<Cell*>(screenY/cellSize));
 
     omp_set_num_threads(nThreads);
 
     sf::RenderWindow window(sf::VideoMode(800, 800), "SFML works!");
     window.setFramerateLimit(60);
     const float dt = 1.0f / static_cast<float>(60);
-
-    particles.push_back(new Body());
-	//std::cout << particles.at(0)->radius << std::endl;
+	window.setVisible(drawWindow);
 
 	initializeCells();
-    fillCells();
 
     FPS fps;
     unsigned int counter = 0;
@@ -156,6 +160,7 @@ int main(int argc, char **argv)
     text2.setPosition(150.f, 23.f);
 
     sf::Clock clock; //start clock
+	sf::Time elapsed;
 
     while (window.isOpen())
     {        
@@ -167,7 +172,7 @@ int main(int argc, char **argv)
 			}
                 
         }
-        if (particles.size() < nParticles)
+        if (counter%5 == 0 && particles.size() < nParticles)
         {
             Body* newBody = new Body();
             if (colorCounter == 0) newBody->shape.setFillColor(sf::Color(255, 0, rgbCounter, 255));
@@ -178,7 +183,7 @@ int main(int argc, char **argv)
             if (colorCounter == 5) newBody->shape.setFillColor(sf::Color(255, rgbCounter, 0, 255));
             if(colorUp)
 			{
-				if(rgbCounter<=254) rgbCounter+=25;
+				if(rgbCounter<=254) rgbCounter+=6;
 				else 
 				{
 					rgbCounter = 255;
@@ -201,7 +206,10 @@ int main(int argc, char **argv)
             particles.push_back(newBody);
         }
 
-        updatePhysicsSubtick(dt, 8);
+		clock.restart();
+        updatePhysicsSubtick(dt, nSubticks);
+		elapsed += clock.getElapsedTime();
+		counter++;
         //updatePhysics(dt);
 
         fps.update();
@@ -217,26 +225,24 @@ int main(int argc, char **argv)
         }
 
         //display time and num particles
-        sf::Time elapsed = clock.getElapsedTime();
-        text.setString("Elapsed time: " + std::to_string(elapsed.asSeconds()) + "    Number of Particles: " + std::to_string(particles.size()));
+        // sf::Time elapsed = clock.getElapsedTime();
+		double avgElapsed = (elapsed.asMilliseconds()/(double)counter);
+        text.setString("Avg ms/update: " + std::to_string(avgElapsed) + "    Number of Particles: " + std::to_string(particles.size()));
         window.draw(text);
         text2.setString("nThreads: " + std::to_string(nThreads));
         window.draw(text2);
 
         window.display();
-        if (counter < 60) counter++;
-        else counter = 0;
 
         if(particles.size() == nParticles)
         {
-            std::cout << "FPS: " << fps.getFPS() << std::endl;
+            // std::cout << "FPS: " << fps.getFPS() << std::endl;
             window.close();
         }
     }
 
-    sf::Time elapsed = clock.getElapsedTime();
-    std::cout << "Elapsed time: " << elapsed.asSeconds() << " sec" << std::endl;
-    std::cout << "Time/particle: " << (elapsed.asSeconds() / nParticles) * 1000 << " ms" << std::endl;
+    std::cout << "Total Elapsed time: " << elapsed.asSeconds() << " sec";
+    std::cout << " Avg Time/physics update: " << (elapsed.asMilliseconds() / (double)counter) << " ms" << std::endl;
 
     particles.clear();
     return 0;
@@ -255,7 +261,7 @@ bool collide(Body* particle1, Body* particle2)
 
 void solveCollision(Body* particle1, Body* particle2)
 {
-    constexpr float response_coef = 1.0f;
+    constexpr float response_coef = 1.0f; //The higher the number the more jiggle but less squishing
     const sf::Vector2f o2_o1 = particle1->pos - particle2->pos;
     const float dist2 = o2_o1.x * o2_o1.x + o2_o1.y * o2_o1.y;
     
@@ -266,7 +272,7 @@ void solveCollision(Body* particle1, Body* particle2)
     sf::Vector2f newP1Pos = particle1->pos + col_vec;
     particle1->setPosition(newP1Pos);
     sf::Vector2f newP2Pos = particle2->pos - col_vec;
-    particle2->setPosition(newP2Pos);
+	particle2->setPosition(newP2Pos);
 }
 
 void findCollisions() 
@@ -319,7 +325,7 @@ void find_collisions_grid()
 {   
 	unsigned int i, j;
     //loop through rows of grid
-     #pragma omp parallel for private(j)
+    #pragma omp parallel for private(j)
     for (i = 0; i < cells.size(); i++)
     {
         //loop through columns of grid
@@ -419,7 +425,7 @@ void fillCells(){
 	unsigned int i;
     clearCells();
     //seems consistently slower with parallel for
-    //#pragma omp parallel for 
+    // #pragma omp parallel for 
     for (i =0; i < particles.size(); i++)
 	{
 		Body* particle = particles.at(i);
