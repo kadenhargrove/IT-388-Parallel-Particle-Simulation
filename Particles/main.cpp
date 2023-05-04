@@ -24,7 +24,7 @@ struct Body
     sf::Vector2f acc;
     float mass = 1.0f; // 1kg
     float drag = 1.0f; // rho*C*Area � simplified drag for this example
-	float radius = 10.0f; //size of each circle
+	float radius = 5.0f; //size of each circle
     sf::CircleShape shape;
 
     Body() {
@@ -114,15 +114,15 @@ int main(int argc, char **argv)
 {
 	if (argc != 6)
     {
-        std::cout << "Usage: export LD_LIBRARY_PATH=../lib/SFML-2.5.1/lib && ./app nThreads nParticles nSubticks cellSize drawWindowFlag" << std::endl;
+        std::cout << "Usage: export LD_LIBRARY_PATH=../lib/SFML-2.5.1/lib && ./app nThreads nParticles cellSize drawWindowFlag" << std::endl;
+		std::cout << "cellSize must be divisible by 800 and >= 10, drawWindowFlag can be 0 or 1" << std::endl;
         exit(0);
     }
     
     int nThreads = atoi(argv[1]);
     unsigned int nParticles = static_cast<unsigned int>(atoi(argv[2]));
-	int nSubticks = atoi(argv[3]);
-	cellSize = atoi(argv[4]);
-	bool drawWindow = atoi(argv[5]);
+	cellSize = atoi(argv[3]);
+	bool drawWindow = atoi(argv[4]);
 
 	cells = std::vector<std::vector<Cell*>>(screenX/cellSize, std::vector<Cell*>(screenY/cellSize));
 
@@ -207,7 +207,7 @@ int main(int argc, char **argv)
         }
 
 		clock.restart();
-        updatePhysicsSubtick(dt, nSubticks);
+        updatePhysicsSubtick(dt, 8);
 		elapsed += clock.getElapsedTime();
 		counter++;
         //updatePhysics(dt);
