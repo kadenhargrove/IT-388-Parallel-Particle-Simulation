@@ -140,7 +140,7 @@ int main(int argc, char **argv)
 	initializeCells();
 
     FPS fps;
-    unsigned int counter = 0;
+    unsigned long long int counter = 0;
     int colorCounter = 0;
 	int rgbCounter = 0;
 	bool colorUp = true;
