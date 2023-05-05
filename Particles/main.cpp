@@ -1,11 +1,4 @@
-/* TO COMPILE:
-	g++ -fopenmp -g -c main.cpp -I../lib/SFML-2.5.1/include
-	g++ main.o -fopenmp -o app -L../lib/SFML-2.5.1/lib -lsfml-graphics -lsfml-window -lsfml-system
-   TO RUN:
-	export LD_LIBRARY_PATH=../lib/SFML-2.5.1/lib && ./app
-
-   DEBUG: g++ -fopenmp -g -Wall -Wextra -pedantic -c main.cpp -I../lib/SFML-2.5.1/include
-
+/* 
    EXPANSE: 
     module load intel mvapich2
     icc -qopenmp -g -c main.cpp -I../lib/SFML-2.5.1/include
@@ -21,7 +14,6 @@
 #include <cmath>
 #include <omp.h>
 #include <iostream>
-#include <unistd.h>
 
 struct Body
 {
@@ -67,7 +59,7 @@ struct Body
 
     sf::Vector2f apply_forces() const
     {
-        sf::Vector2f grav_acc = sf::Vector2f( 0.0f, 100.0f); //
+        sf::Vector2f grav_acc = sf::Vector2f( 0.0f, 100.0f);
         sf::Vector2f drag_force = 0.5f * drag * vel; // D = 0.5 * (rho * C * Area * vel^2)
         sf::Vector2f drag_acc = drag_force / mass; // a = F/m
         return grav_acc- drag_acc;
@@ -189,14 +181,10 @@ int main(int argc, char **argv)
         updatePhysicsSubtick(dt, 8);
 		elapsed += clock.getElapsedTime();
 		counter++;
-        //updatePhysics(dt);
 
         fps.update();
         std::ostringstream ss;
         ss << fps.getFPS();
-
-        //display time and num particles
-        // sf::Time elapsed = clock.getElapsedTime();
 
         if(particles.size() >= nParticles)
         {
